@@ -39,6 +39,7 @@ class CSSRenderer {
   private container: HTMLDivElement;
   private pool: HTMLDivElement[] = [];
   private activeElements: Map<number, HTMLDivElement> = new Map();
+  private activeReverseState: Map<number, boolean> = new Map();
   private styleElement: HTMLStyleElement;
   private paused = false;
 
@@ -106,8 +107,17 @@ class CSSRenderer {
 
       currentVisible.add(comment.index);
 
+      const reverse = comment.owner
+        ? frameActiveState.reverseActiveOwner
+        : frameActiveState.reverseActiveViewer;
+
       if (!this.activeElements.has(comment.index)) {
         this.createCommentElement(comment, vpos, frameActiveState);
+      } else if (
+        comment.loc === "naka" &&
+        this.activeReverseState.get(comment.index) !== reverse
+      ) {
+        this.reanimateScroll(comment, vpos, reverse);
       }
       drawnCount++;
     }
@@ -116,6 +126,7 @@ class CSSRenderer {
       if (!currentVisible.has(index)) {
         this.recycleElement(element);
         this.activeElements.delete(index);
+        this.activeReverseState.delete(index);
       }
     }
 
@@ -178,13 +189,19 @@ class CSSRenderer {
     }
 
     if (comment.loc === "naka") {
-      this.setupScrollAnimation(element, comment, vpos, reverse);
+      if (!this.setupScrollAnimation(element, comment, vpos, reverse)) {
+        this.recycleElement(element);
+        return;
+      }
     } else {
       this.setupFixedAnimation(element, comment, vpos, effectiveAlpha);
     }
 
     this.container.appendChild(element);
     this.activeElements.set(comment.index, element);
+    if (comment.loc === "naka") {
+      this.activeReverseState.set(comment.index, reverse);
+    }
 
     if (this.paused) {
       const animations = element.getAnimations();
@@ -194,12 +211,38 @@ class CSSRenderer {
     }
   }
 
+  private reanimateScroll(comment: IComment, vpos: number, reverse: boolean) {
+    const element = this.activeElements.get(comment.index);
+    if (!element) return;
+
+    const animations = element.getAnimations();
+    for (let i = 0, n = animations.length; i < n; i++) {
+      animations[i]?.cancel();
+    }
+
+    if (!this.setupScrollAnimation(element, comment, vpos, reverse)) {
+      this.recycleElement(element);
+      this.activeElements.delete(comment.index);
+      this.activeReverseState.delete(comment.index);
+      return;
+    }
+
+    this.activeReverseState.set(comment.index, reverse);
+
+    if (this.paused) {
+      const newAnimations = element.getAnimations();
+      for (let i = 0, n = newAnimations.length; i < n; i++) {
+        newAnimations[i]?.pause();
+      }
+    }
+  }
+
   private setupScrollAnimation(
     element: HTMLDivElement,
     comment: IComment,
     vpos: number,
     reverse: boolean,
-  ) {
+  ): boolean {
     const c = comment.comment;
 
     const speed =
@@ -207,36 +250,43 @@ class CSSRenderer {
       (comment.long + 100);
 
     const vposLapsed = vpos - comment.vpos;
-    let currentXPx =
+    const normalXPx =
       config.commentDrawPadding +
       config.commentDrawRange -
       (vposLapsed + 100) * speed;
+
+    let currentXPx: number;
+    let toXPx: number;
+    let remainingPx: number;
+
     if (reverse) {
-      currentXPx = config.canvasWidth - c.width - currentXPx;
+      currentXPx = config.canvasWidth - c.width - normalXPx;
+      toXPx = config.canvasWidth;
+      remainingPx = toXPx - currentXPx;
+    } else {
+      currentXPx = normalXPx;
+      toXPx = -c.width;
+      remainingPx = currentXPx - toXPx;
     }
 
-    const fromXPx = config.commentDrawPadding + config.commentDrawRange;
-    const toXPx = -c.width;
-    const totalDurationSec = (fromXPx - toXPx) / (speed * 100);
-    const elapsedSec = (vposLapsed + 100) / 100;
+    const remainingSec = remainingPx / (speed * 100);
 
-    element.style.transform = `translateX(calc(${currentXPx} * var(--dm-unit)))`;
-
-    const animFromX = reverse ? toXPx : fromXPx;
-    const animToX = reverse ? fromXPx : toXPx;
+    if (remainingSec <= 0) {
+      return false;
+    }
 
     element.animate(
       [
-        { transform: `translateX(calc(${animFromX} * var(--dm-unit)))` },
-        { transform: `translateX(calc(${animToX} * var(--dm-unit)))` },
+        { transform: `translateX(calc(${currentXPx} * var(--dm-unit)))` },
+        { transform: `translateX(calc(${toXPx} * var(--dm-unit)))` },
       ],
       {
-        duration: totalDurationSec * 1000,
+        duration: remainingSec * 1000,
         easing: "linear",
         fill: "forwards",
-        delay: -elapsedSec * 1000,
       },
     );
+    return true;
   }
 
   private setupFixedAnimation(
@@ -296,6 +346,7 @@ class CSSRenderer {
       this.recycleElement(element);
     }
     this.activeElements.clear();
+    this.activeReverseState.clear();
   }
 
   destroy() {
