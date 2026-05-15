@@ -145,10 +145,13 @@ class CSSRenderer {
       ? frameActiveState.reverseActiveOwner
       : frameActiveState.reverseActiveViewer;
 
+    const layerScale = c.layer === -1 ? options.scale : 1;
+    const scaledPosY = comment.posY * layerScale;
+    const scaledHeight = comment.height * layerScale;
     const posY =
       comment.loc === "shita"
-        ? config.canvasHeight - comment.posY - comment.height
-        : comment.posY;
+        ? config.canvasHeight - scaledPosY - scaledHeight
+        : scaledPosY;
 
     const drawScale = this.getDrawScale(comment);
     const fontSizePx = c.fontSize * drawScale;
