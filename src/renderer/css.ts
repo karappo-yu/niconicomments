@@ -74,7 +74,7 @@ class CSSRenderer {
     for (const [, element] of this.activeElements) {
       const animations = element.getAnimations();
       for (let i = 0, n = animations.length; i < n; i++) {
-        animations[i]!.pause();
+        animations[i]?.pause();
       }
     }
   }
@@ -85,7 +85,7 @@ class CSSRenderer {
     for (const [, element] of this.activeElements) {
       const animations = element.getAnimations();
       for (let i = 0, n = animations.length; i < n; i++) {
-        animations[i]!.play();
+        animations[i]?.play();
       }
     }
   }
@@ -174,9 +174,14 @@ class CSSRenderer {
     element.style.color = c.color;
     element.style.zIndex = String(comment.layer + 1);
     element.style.webkitTextStroke = `calc(${strokeWidthPx} * var(--dm-unit)) ${strokeColor}`;
-    element.style.lineHeight = String(c.lineHeight / c.fontSize);
 
-    this.applyFont(element, c.font);
+    if (comment.flash) {
+      element.style.lineHeight = String(c.lineHeight);
+    } else {
+      element.style.lineHeight = String(c.lineHeight / c.fontSize);
+    }
+
+    this.applyFont(element, c.font, comment.flash);
 
     if (effectiveAlpha !== 1) {
       element.style.opacity = String(effectiveAlpha);
@@ -233,9 +238,9 @@ class CSSRenderer {
     this.activeReverseState.set(comment.index, reverse);
 
     if (this.paused) {
-      const newAnimations = element.getAnimations();
-      for (let i = 0, n = newAnimations.length; i < n; i++) {
-        newAnimations[i]?.pause();
+      const animations = element.getAnimations();
+      for (let i = 0, n = animations.length; i < n; i++) {
+        animations[i]?.pause();
       }
     }
   }
@@ -299,7 +304,9 @@ class CSSRenderer {
     effectiveAlpha: number,
   ) {
     const c = comment.comment;
-    const leftPx = (config.canvasWidth - c.width) / 2;
+    const layerScale = c.layer === -1 ? options.scale : 1;
+    const scaledWidth = c.width * layerScale;
+    const leftPx = (config.canvasWidth - scaledWidth) / 2;
 
     const durationSec = comment.long / 100;
     const vposLapsed = vpos - comment.vpos;
@@ -311,20 +318,42 @@ class CSSRenderer {
     element.style.animationDelay = `-${elapsedSec}s`;
   }
 
-  private applyFont(element: HTMLDivElement, font: CommentFont) {
-    const html5Fonts = config.fonts.html5;
-    const fontConfig =
-      font === "gothic" || font === "mincho" || font === "defont"
-        ? html5Fonts[font]
-        : html5Fonts.defont;
-    if (!fontConfig) return;
-    element.style.fontFamily = fontConfig.font;
-    element.style.fontWeight = String(fontConfig.weight);
+  private applyFont(
+    element: HTMLDivElement,
+    font: CommentFont,
+    isFlash: boolean,
+  ) {
+    if (isFlash) {
+      const flashFonts = config.fonts.flash as Record<string, string>;
+      const fontTemplate = flashFonts[font] || flashFonts.gulim;
+      if (fontTemplate) {
+        const parts = fontTemplate.split("[size]px");
+        if (parts.length === 2) {
+          const before = parts[0]?.trim() ?? "";
+          const after = parts[1]?.trim() ?? "";
+          const weightMatch = before.match(/(\d+)\s*$/);
+          if (weightMatch && weightMatch[1]) {
+            element.style.fontWeight = weightMatch[1];
+          }
+          element.style.fontFamily = after;
+        }
+      }
+    } else {
+      const html5Fonts = config.fonts.html5;
+      const fontConfig =
+        font === "gothic" || font === "mincho" || font === "defont"
+          ? html5Fonts[font]
+          : html5Fonts.defont;
+      if (fontConfig) {
+        element.style.fontFamily = fontConfig.font;
+        element.style.fontWeight = String(fontConfig.weight);
+      }
+    }
   }
 
   private getElementFromPool(): HTMLDivElement {
     if (this.pool.length > 0) {
-      return this.pool.pop()!;
+      return this.pool.pop() as HTMLDivElement;
     }
     const element = document.createElement("div");
     element.setAttribute("data-dm-comment", "");
@@ -334,7 +363,7 @@ class CSSRenderer {
   private recycleElement(element: HTMLDivElement) {
     const animations = element.getAnimations();
     for (let i = 0, n = animations.length; i < n; i++) {
-      animations[i]!.cancel();
+      animations[i]?.cancel();
     }
     element.remove();
     element.style.cssText = "";

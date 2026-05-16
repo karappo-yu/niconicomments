@@ -638,7 +638,7 @@ const getOpacity = (match: RegExpMatchArray | null) => {
  */
 const isFlashComment = (comment: FormattedComment): boolean =>
   options.mode === "flash" ||
-  (options.mode === "default" &&
+  ((options.mode === "default" || options.mode === "css") &&
     !(
       comment.mail.includes("gothic") ||
       comment.mail.includes("defont") ||
