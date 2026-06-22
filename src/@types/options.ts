@@ -35,7 +35,7 @@ export type InputFormat =
   | V1Thread[]
   | string
   | undefined;
-type ModeType = "default" | "html5" | "flash";
+type ModeType = "default" | "html5" | "flash" | "css";
 export type BaseOptions = {
   config: Config;
   debug: boolean;

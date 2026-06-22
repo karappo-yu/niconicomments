@@ -23,6 +23,7 @@ import { InvalidOptionError } from "@/errors/";
 import { EventHandler } from "@/eventHandler";
 import convert2formattedComment from "@/inputParser";
 import { createRenderer } from "@/renderer";
+import { CSSRenderer } from "@/renderer/css";
 import typeGuard from "@/typeGuard";
 import {
   arrayEqual,
@@ -171,6 +172,7 @@ class NiconiComments {
   private comments: IComment[];
   private destroyed = false;
   private readonly renderer: IRenderer;
+  private cssRenderer: CSSRenderer | null = null;
   private readonly collision: Collision;
   private readonly timeline: Timeline;
   private readonly ctx: CommentInstanceContext;
@@ -234,6 +236,10 @@ class NiconiComments {
       rendererSize.height / config.canvasHeight,
     );
 
+    if (options.mode === "css" && _renderer instanceof HTMLCanvasElement) {
+      this.cssRenderer = new CSSRenderer(this.renderer.canvas, config, options);
+    }
+
     let formatType = options.format;
 
     //Deprecated Warning
@@ -291,6 +297,10 @@ class NiconiComments {
   public destroy() {
     if (this.destroyed) return;
     this.destroyed = true;
+    if (this.cssRenderer) {
+      this.cssRenderer.destroy();
+      this.cssRenderer = null;
+    }
     for (const comment of this.comments) {
       try {
         comment.destroy?.();
@@ -704,6 +714,29 @@ class NiconiComments {
       if (arrayEqual(timelineRange, lastTimelineRange)) return false;
     }
     this.frameDirty = true;
+
+    if (this.cssRenderer) {
+      this.lastVpos = vpos;
+      this._resolveCommentPositions(timelineRange, frameBanActive);
+      const frameActiveState: FrameActiveState = {
+        banActive: frameBanActive,
+        reverseActiveOwner: isReverseActive(
+          vpos,
+          true,
+          this.ctx.nicoScripts,
+          this.ctx.rangeCache,
+        ),
+        reverseActiveViewer: isReverseActive(
+          vpos,
+          false,
+          this.ctx.nicoScripts,
+          this.ctx.rangeCache,
+        ),
+      };
+      this.cssRenderer.updateComments(timelineRange, vpos, frameActiveState);
+      return true;
+    }
+
     this.renderer.clearRect(
       0,
       0,
@@ -775,6 +808,83 @@ class NiconiComments {
    */
   private _drawVideo() {
     this.renderer.drawVideo(this.enableLegacyPiP);
+  }
+
+  /**
+   * CSS レンダラー用にコメント位置を解決する
+   * _drawComments の位置解決ロジックを抽出したもの
+   */
+  private _resolveCommentPositions(
+    timelineRange: readonly IComment[],
+    banActive: boolean,
+  ) {
+    const { config } = this.ctx;
+    let startIndex = 0;
+    let endIndex = timelineRange.length;
+    if (config.commentLimit !== undefined) {
+      if (config.commentLimit === 0) {
+        return;
+      } else if (config.hideCommentOrder === "asc") {
+        ({ startIndex, endIndex } = getSliceBounds(
+          timelineRange.length,
+          -config.commentLimit,
+        ));
+      } else {
+        ({ startIndex, endIndex } = getSliceBounds(
+          timelineRange.length,
+          0,
+          config.commentLimit,
+        ));
+      }
+    }
+    if (banActive && !this.ctx.options.lazy) return;
+    let maxCommentOffset = -1;
+    let requiresFullScan = false;
+    for (let i = startIndex; i < endIndex; i++) {
+      const comment = timelineRange[i];
+      if (!comment || comment.invisible) continue;
+      const commentOffset = this.commentArrayIndexMap.get(comment);
+      if (commentOffset === undefined) {
+        requiresFullScan = true;
+        break;
+      }
+      if (maxCommentOffset < commentOffset) {
+        maxCommentOffset = commentOffset;
+      }
+    }
+    if (banActive) {
+      const resolutionEnd =
+        this.processedCommentIndex + 1 + BAN_FRAME_POSITION_RESOLUTION_BUDGET;
+      if (
+        requiresFullScan &&
+        this.processedCommentIndex < this.comments.length - 1
+      ) {
+        this.getCommentPos(
+          this.comments,
+          Math.min(this.comments.length, resolutionEnd),
+        );
+      } else if (
+        maxCommentOffset >= 0 &&
+        this.processedCommentIndex < maxCommentOffset
+      ) {
+        this.getCommentPos(
+          this.comments,
+          Math.min(maxCommentOffset + 1, resolutionEnd),
+        );
+      }
+      return;
+    }
+    if (
+      requiresFullScan &&
+      this.processedCommentIndex < this.comments.length - 1
+    ) {
+      this.getCommentPos(this.comments, this.comments.length);
+    } else if (
+      maxCommentOffset >= 0 &&
+      this.processedCommentIndex < maxCommentOffset
+    ) {
+      this.getCommentPos(this.comments, maxCommentOffset + 1);
+    }
   }
 
   /**
@@ -990,6 +1100,9 @@ class NiconiComments {
    * キャンバスを消去する
    */
   public clear() {
+    if (this.cssRenderer) {
+      this.cssRenderer.clear();
+    }
     const clear = getRendererClear(this.renderer);
     if (clear) {
       clear.call(this.renderer);
@@ -998,6 +1111,36 @@ class NiconiComments {
       this.renderer.clearRect(0, 0, size.width, size.height);
     }
     this.renderer.flush();
+  }
+
+  public pauseCSS() {
+    if (this.cssRenderer) {
+      this.cssRenderer.pause();
+    }
+  }
+
+  public resumeCSS() {
+    if (this.cssRenderer) {
+      this.cssRenderer.resume();
+    }
+  }
+
+  public getVisibleComments(): Record<string, unknown>[] {
+    if (!this.cssRenderer) return [];
+    const indices = this.cssRenderer.getVisibleCommentIndices();
+    const result: Record<string, unknown>[] = [];
+    for (const idx of indices) {
+      const c = this.comments[idx];
+      if (!c) continue;
+      result.push({
+        index: c.index,
+        vpos: c.vpos,
+        loc: c.loc,
+        posY: c.posY,
+        height: c.height,
+      });
+    }
+    return result;
   }
 
   /**

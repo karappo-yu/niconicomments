@@ -127,7 +127,7 @@ const isValidOptionScale = (i: unknown): i is number =>
   isFiniteNumberInRange(i, { min: Number.MIN_VALUE, max: MAX_OPTION_SCALE });
 
 const isMode = (i: unknown): boolean =>
-  i === "default" || i === "html5" || i === "flash";
+  i === "default" || i === "html5" || i === "flash" || i === "css";
 
 const isHideCommentOrder = (i: unknown): boolean => i === "asc" || i === "desc";
 
