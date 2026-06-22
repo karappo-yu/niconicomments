@@ -119,7 +119,23 @@ class CSSRenderer {
       this.lastUpdateVpos >= 0 && Math.abs(vpos - this.lastUpdateVpos) > 150;
     let drawnCount = 0;
 
-    for (let i = 0, n = comments.length; i < n; i++) {
+    let startIndex = 0;
+    let endIndex = comments.length;
+    const limit = this.config.commentLimit;
+    if (limit !== undefined) {
+      if (limit === 0) {
+        if (this.activeElements.size > 0) this.clear();
+        this.lastUpdateVpos = vpos;
+        return 0;
+      }
+      if (this.config.hideCommentOrder === "asc") {
+        startIndex = Math.max(0, comments.length - limit);
+      } else {
+        endIndex = Math.min(comments.length, limit);
+      }
+    }
+
+    for (let i = startIndex; i < endIndex; i++) {
       const comment = comments[i];
       if (!comment || comment.invisible) {
         continue;
@@ -160,10 +176,7 @@ class CSSRenderer {
     return drawnCount;
   }
 
-  private createCommentElement(
-    comment: IComment,
-    vpos: number,
-  ): boolean {
+  private createCommentElement(comment: IComment, vpos: number): boolean {
     const element = this.getElementFromPool();
     const c = comment.comment;
 
@@ -211,7 +224,8 @@ class CSSRenderer {
     const fontWeight = element.style.fontWeight || "400";
     const ascentFraction = this.measureAscentFraction(fontFamily, fontWeight);
     const ascentRendered = ascentFraction * fontSizePx;
-    const baselineCorrection = lineHeightPx / 2 + fontSizePx / 2 - ascentRendered;
+    const baselineCorrection =
+      lineHeightPx / 2 + fontSizePx / 2 - ascentRendered;
 
     element.style.top = `calc(${posY} * var(--dm-unit))`;
     element.style.paddingTop = `calc(${paddingTopCanvas + offsetYCanvas + baselineCorrection} * var(--dm-unit))`;
