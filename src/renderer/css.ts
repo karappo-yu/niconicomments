@@ -166,7 +166,6 @@ class CSSRenderer {
 
     this.lastUpdateVpos = vpos;
 
-    let recycled = 0;
     for (const [index, element] of this.activeElements) {
       if (this.activeSeenGeneration.get(index) !== generation) {
         // 若 CSS 动画仍在播放（running/paused），说明弹幕尚未走完轨迹。
@@ -185,7 +184,6 @@ class CSSRenderer {
         this.recycleElement(element);
         this.activeElements.delete(index);
         this.activeSeenGeneration.delete(index);
-        recycled++;
       }
     }
 
