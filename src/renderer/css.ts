@@ -166,11 +166,26 @@ class CSSRenderer {
 
     this.lastUpdateVpos = vpos;
 
+    let recycled = 0;
     for (const [index, element] of this.activeElements) {
       if (this.activeSeenGeneration.get(index) !== generation) {
+        // 若 CSS 动画仍在播放（running/paused），说明弹幕尚未走完轨迹。
+        // 这通常发生在 seek 重建动画后 timeline 生命周期已到尽头、但动画
+        // currentTime 还很小的情形。此时不应回收，否则弹幕会凭空消失。
+        const anims = element.getAnimations();
+        let stillPlaying = false;
+        for (let i = 0, n = anims.length; i < n; i++) {
+          const state = anims[i]?.playState;
+          if (state === "running" || state === "paused") {
+            stillPlaying = true;
+            break;
+          }
+        }
+        if (stillPlaying) continue;
         this.recycleElement(element);
         this.activeElements.delete(index);
         this.activeSeenGeneration.delete(index);
+        recycled++;
       }
     }
 
