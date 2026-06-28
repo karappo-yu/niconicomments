@@ -123,6 +123,9 @@ class CSSRenderer {
     let startIndex = 0;
     let endIndex = comments.length;
     const limit = this.config.commentLimit;
+    // commentLimit によって描画範囲から外されたコメントの index を記録し、
+    // 回収ループで stillPlaying チェックを回避して即時回収するために使う
+    const excludedByLimit = new Set<number>();
     if (limit !== undefined) {
       if (limit === 0) {
         if (this.activeElements.size > 0) this.clear();
@@ -133,6 +136,14 @@ class CSSRenderer {
         startIndex = Math.max(0, comments.length - limit);
       } else {
         endIndex = Math.min(comments.length, limit);
+      }
+      for (let i = 0; i < startIndex; i++) {
+        const c = comments[i];
+        if (c) excludedByLimit.add(c.index);
+      }
+      for (let i = endIndex; i < comments.length; i++) {
+        const c = comments[i];
+        if (c) excludedByLimit.add(c.index);
       }
     }
 
@@ -168,19 +179,23 @@ class CSSRenderer {
 
     for (const [index, element] of this.activeElements) {
       if (this.activeSeenGeneration.get(index) !== generation) {
-        // 若 CSS 动画仍在播放（running/paused），说明弹幕尚未走完轨迹。
-        // 这通常发生在 seek 重建动画后 timeline 生命周期已到尽头、但动画
-        // currentTime 还很小的情形。此时不应回收，否则弹幕会凭空消失。
-        const anims = element.getAnimations();
-        let stillPlaying = false;
-        for (let i = 0, n = anims.length; i < n; i++) {
-          const state = anims[i]?.playState;
-          if (state === "running" || state === "paused") {
-            stillPlaying = true;
-            break;
+        // commentLimit によって範囲外とされたコメントはアニメーション状態に
+        // 関わらず即時回収する
+        if (!excludedByLimit.has(index)) {
+          // 若 CSS 动画仍在播放（running/paused），说明弹幕尚未走完轨迹。
+          // 这通常发生在 seek 重建动画后 timeline 生命周期已到尽头、但动画
+          // currentTime 还很小的情形。此时不应回收，否则弹幕会凭空消失。
+          const anims = element.getAnimations();
+          let stillPlaying = false;
+          for (let i = 0, n = anims.length; i < n; i++) {
+            const state = anims[i]?.playState;
+            if (state === "running" || state === "paused") {
+              stillPlaying = true;
+              break;
+            }
           }
+          if (stillPlaying) continue;
         }
-        if (stillPlaying) continue;
         this.recycleElement(element);
         this.activeElements.delete(index);
         this.activeSeenGeneration.delete(index);
