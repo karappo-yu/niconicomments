@@ -376,9 +376,16 @@ class CSSRenderer {
       return false;
     }
 
-    const distanceXPx = currentXPx + c.width + fontSizePx;
-    const fromXPx = isReverse ? toXPx : currentXPx;
-    const endXPx = isReverse ? fromXPx + distanceXPx : toXPx;
+    let fromXPx: number;
+    let endXPx: number;
+    if (isReverse) {
+      // Mirror around canvas center, matching getPosX(…, isReverse=true)
+      fromXPx = this.config.canvasWidth - c.width - currentXPx;
+      endXPx = this.config.canvasWidth + fontSizePx;
+    } else {
+      fromXPx = currentXPx;
+      endXPx = toXPx;
+    }
 
     element.animate(
       [
