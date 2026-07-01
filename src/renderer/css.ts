@@ -49,6 +49,7 @@ class CSSRenderer {
   private pool: HTMLDivElement[] = [];
   private activeElements: Map<number, HTMLDivElement> = new Map();
   private activeSeenGeneration: Map<number, number> = new Map();
+  private activeElementReverse: Map<number, boolean> = new Map();
   private visibilityGeneration = 0;
   private styleElement: HTMLStyleElement;
   private paused = false;
@@ -148,6 +149,9 @@ class CSSRenderer {
     }
 
     for (let i = startIndex; i < endIndex; i++) {
+      const isReverse = comments[i]!.owner
+        ? frameActiveState.reverseActiveOwner
+        : frameActiveState.reverseActiveViewer;
       const comment = comments[i];
       if (!comment || comment.invisible) {
         continue;
@@ -158,12 +162,15 @@ class CSSRenderer {
       const element = this.activeElements.get(comment.index);
 
       if (!element) {
-        if (!this.createCommentElement(comment, vpos)) {
+        if (!this.createCommentElement(comment, vpos, isReverse)) {
           this.activeSeenGeneration.delete(comment.index);
           continue;
         }
-      } else if (comment.loc === "naka" && isSeek) {
-        this.reanimateScroll(comment, vpos);
+      } else if (
+        comment.loc === "naka" &&
+        (isSeek || isReverse !== this.activeElementReverse.get(comment.index))
+      ) {
+        this.reanimateScroll(comment, vpos, isReverse);
       } else if (isSeek) {
         this.setupFixedAnimation(
           element,
@@ -199,13 +206,18 @@ class CSSRenderer {
         this.recycleElement(element);
         this.activeElements.delete(index);
         this.activeSeenGeneration.delete(index);
+        this.activeElementReverse.delete(index);
       }
     }
 
     return drawnCount;
   }
 
-  private createCommentElement(comment: IComment, vpos: number): boolean {
+  private createCommentElement(
+    comment: IComment,
+    vpos: number,
+    isReverse: boolean,
+  ): boolean {
     const element = this.getElementFromPool();
     const c = comment.comment;
 
@@ -280,13 +292,15 @@ class CSSRenderer {
     }
 
     if (comment.loc === "naka") {
-      if (!this.setupScrollAnimation(element, comment, vpos)) {
+      if (!this.setupScrollAnimation(element, comment, vpos, isReverse)) {
         this.recycleElement(element);
         return false;
       }
     } else {
       this.setupFixedAnimation(element, comment, vpos, effectiveAlpha);
     }
+
+    this.activeElementReverse.set(comment.index, isReverse);
 
     this.container.appendChild(element);
     this.activeElements.set(comment.index, element);
@@ -300,7 +314,7 @@ class CSSRenderer {
     return true;
   }
 
-  private reanimateScroll(comment: IComment, vpos: number) {
+  private reanimateScroll(comment: IComment, vpos: number, isReverse: boolean) {
     const element = this.activeElements.get(comment.index);
     if (!element) return;
 
@@ -309,12 +323,15 @@ class CSSRenderer {
       animations[i]?.cancel();
     }
 
-    if (!this.setupScrollAnimation(element, comment, vpos)) {
+    if (!this.setupScrollAnimation(element, comment, vpos, isReverse)) {
       this.recycleElement(element);
       this.activeElements.delete(comment.index);
       this.activeSeenGeneration.delete(comment.index);
+      this.activeElementReverse.delete(comment.index);
       return;
     }
+
+    this.activeElementReverse.set(comment.index, isReverse);
 
     if (this.paused) {
       const animations = element.getAnimations();
@@ -328,6 +345,7 @@ class CSSRenderer {
     element: HTMLDivElement,
     comment: IComment,
     vpos: number,
+    isReverse: boolean,
   ): boolean {
     const c = comment.comment;
     const commentScale = getConfig(this.config.commentScale, comment.flash);
@@ -352,17 +370,20 @@ class CSSRenderer {
     const currentXPx = normalXPx;
     const toXPx = -(c.width + fontSizePx);
     const remainingPx = currentXPx - toXPx;
-
     const remainingSec = remainingPx / (speed * 100);
 
     if (remainingSec <= 0) {
       return false;
     }
 
+    const distanceXPx = currentXPx + c.width + fontSizePx;
+    const fromXPx = isReverse ? toXPx : currentXPx;
+    const endXPx = isReverse ? fromXPx + distanceXPx : toXPx;
+
     element.animate(
       [
-        { transform: `translateX(calc(${currentXPx} * var(--dm-unit)))` },
-        { transform: `translateX(calc(${toXPx} * var(--dm-unit)))` },
+        { transform: `translateX(calc(${fromXPx} * var(--dm-unit)))` },
+        { transform: `translateX(calc(${endXPx} * var(--dm-unit)))` },
       ],
       {
         duration: remainingSec * 1000,
@@ -481,6 +502,7 @@ class CSSRenderer {
     }
     this.activeElements.clear();
     this.activeSeenGeneration.clear();
+    this.activeElementReverse.clear();
     this.lastUpdateVpos = -1;
   }
 
