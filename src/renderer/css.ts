@@ -174,8 +174,6 @@ class CSSRenderer {
       } else if (isSeek) {
         this.setupFixedAnimation(
           element,
-          comment,
-          vpos,
           this.getEffectiveAlpha(comment.comment),
         );
       }
@@ -297,7 +295,7 @@ class CSSRenderer {
         return false;
       }
     } else {
-      this.setupFixedAnimation(element, comment, vpos, effectiveAlpha);
+      this.setupFixedAnimation(element, effectiveAlpha);
     }
 
     this.activeElementReverse.set(comment.index, isReverse);
@@ -401,21 +399,10 @@ class CSSRenderer {
     return true;
   }
 
-  private setupFixedAnimation(
-    element: HTMLDivElement,
-    comment: IComment,
-    vpos: number,
-    effectiveAlpha: number,
-  ) {
-    const durationSec = comment.long / 100;
-    const vposLapsed = vpos - comment.vpos;
-    const elapsedSec = Math.max(0, vposLapsed / 100);
-
+  private setupFixedAnimation(element: HTMLDivElement, effectiveAlpha: number) {
     element.style.left = "50%";
     element.style.transform = "translateX(-50%)";
     element.style.setProperty("--dm-base-opacity", String(effectiveAlpha));
-    element.style.animation = `dm-fade ${durationSec}s linear forwards`;
-    element.style.animationDelay = `-${elapsedSec}s`;
   }
 
   private getEffectiveAlpha(c: FormattedCommentWithSize): number {
