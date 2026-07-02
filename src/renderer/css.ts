@@ -36,10 +36,6 @@ const CSS = `
   paint-order: stroke fill;
   stroke-linejoin: round;
 }
-@keyframes dm-fade {
-  0%, 90% { opacity: var(--dm-base-opacity, 1); }
-  100% { opacity: 0; }
-}
 `;
 
 class CSSRenderer {
@@ -172,10 +168,7 @@ class CSSRenderer {
       ) {
         this.reanimateScroll(comment, vpos, isReverse);
       } else if (isSeek) {
-        this.setupFixedAnimation(
-          element,
-          this.getEffectiveAlpha(comment.comment),
-        );
+        this.setupFixedAnimation(element);
       }
       drawnCount++;
     }
@@ -295,7 +288,7 @@ class CSSRenderer {
         return false;
       }
     } else {
-      this.setupFixedAnimation(element, effectiveAlpha);
+      this.setupFixedAnimation(element);
     }
 
     this.activeElementReverse.set(comment.index, isReverse);
@@ -399,10 +392,9 @@ class CSSRenderer {
     return true;
   }
 
-  private setupFixedAnimation(element: HTMLDivElement, effectiveAlpha: number) {
+  private setupFixedAnimation(element: HTMLDivElement) {
     element.style.left = "50%";
     element.style.transform = "translateX(-50%)";
-    element.style.setProperty("--dm-base-opacity", String(effectiveAlpha));
   }
 
   private getEffectiveAlpha(c: FormattedCommentWithSize): number {
