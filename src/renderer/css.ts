@@ -266,7 +266,13 @@ class CSSRenderer {
       c.lineHeight / (renderFontSize * fontScale),
     );
     element.style.color = c.color;
-    element.style.zIndex = String(comment.layer + 1);
+    // z-index を TIMELINE_COMMENT_SORT（owner優先 → index順）に合わせる。
+    // canvas レンダラーは配列順に描画するため layer は描画順に影響しないが、
+    // CSS では z-index が重なり順を決定する。layer を使うと CA 弾幕が
+    // 非 CA 弹幕より前面に出て背景が文字を覆ってしまうため、index で順序付ける。
+    element.style.zIndex = String(
+      (comment.owner ? 0x40000000 : 0) + comment.index + 1,
+    );
     element.style.webkitTextStroke = `calc(${strokeWidthPx} * var(--dm-unit)) ${strokeColor}`;
 
     if (effectiveAlpha !== 1) {
