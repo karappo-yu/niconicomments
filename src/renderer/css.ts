@@ -274,6 +274,11 @@ class CSSRenderer {
       (comment.owner ? 0x40000000 : 0) + comment.index + 1,
     );
     element.style.webkitTextStroke = `calc(${strokeWidthPx} * var(--dm-unit)) ${strokeColor}`;
+    // 描边外缘加一圈半透明渐变，让边缘不过于锐利。
+    // text-shadow 在合成层上只绘制一次，transform 动画不触发重算，开销极低。
+    if (strokeWidthPx > 0) {
+      element.style.textShadow = `0 0 calc(${strokeWidthPx * 0.7} * var(--dm-unit)) ${strokeColor}`;
+    }
 
     if (effectiveAlpha !== 1) {
       element.style.opacity = String(effectiveAlpha);
