@@ -275,9 +275,9 @@ class CSSRenderer {
     );
     element.style.webkitTextStroke = `calc(${strokeWidthPx} * var(--dm-unit)) ${strokeColor}`;
     // 描边外缘加一圈半透明渐变，让边缘不过于锐利。
-    // text-shadow 在合成层上只绘制一次，transform 动画不触发重算，开销极低。
+    // 用固定 px 不跟随 dm-unit 缩放，避免大窗口时渐变过强、小窗口时亚像素舍入失效。
     if (strokeWidthPx > 0) {
-      element.style.textShadow = `0 0 calc(${strokeWidthPx * 0.7} * var(--dm-unit)) ${strokeColor}`;
+      element.style.textShadow = `0 0 2px ${strokeColor}`;
     }
 
     if (effectiveAlpha !== 1) {
