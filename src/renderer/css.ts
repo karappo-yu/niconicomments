@@ -144,6 +144,9 @@ class CSSRenderer {
       }
     }
 
+    // 批量创建新元素，避免逐个 appendChild 触发布局抖动
+    const newElements: HTMLDivElement[] = [];
+
     for (let i = startIndex; i < endIndex; i++) {
       const isReverse = comments[i]!.owner
         ? frameActiveState.reverseActiveOwner
@@ -162,6 +165,9 @@ class CSSRenderer {
           this.activeSeenGeneration.delete(comment.index);
           continue;
         }
+        // 收集新创建的元素，稍后批量追加到 DOM
+        const newEl = this.activeElements.get(comment.index);
+        if (newEl) newElements.push(newEl!);
       } else if (
         comment.loc === "naka" &&
         (isSeek || isReverse !== this.activeElementReverse.get(comment.index))
@@ -174,6 +180,15 @@ class CSSRenderer {
     }
 
     this.lastUpdateVpos = vpos;
+
+    // 批量追加新元素，仅触发一次布局
+    if (newElements.length > 0) {
+      const fragment = document.createDocumentFragment();
+      for (let i = 0, n = newElements.length; i < n; i++) {
+        fragment.appendChild(newElements[i]!);
+      }
+      this.container.appendChild(fragment);
+    }
 
     for (const [index, element] of this.activeElements) {
       if (this.activeSeenGeneration.get(index) !== generation) {
@@ -304,7 +319,6 @@ class CSSRenderer {
 
     this.activeElementReverse.set(comment.index, isReverse);
 
-    this.container.appendChild(element);
     this.activeElements.set(comment.index, element);
 
     if (this.paused) {
@@ -472,8 +486,21 @@ class CSSRenderer {
   }
 
   private getElementFromPool(): HTMLDivElement {
-    if (this.pool.length > 0) {
-      return this.pool.pop() as HTMLDivElement;
+    while (this.pool.length > 0) {
+      const element = this.pool.pop() as HTMLDivElement;
+      // Safari/WebKit: cancelled animations may linger on recycled elements
+      // and interfere with new animations. Double-clear any residual ones.
+      const residual = element.getAnimations();
+      for (let i = 0, n = residual.length; i < n; i++) {
+        if (
+          residual[i]?.playState === "running" ||
+          residual[i]?.playState === "paused"
+        ) {
+          residual[i]?.finish();
+        }
+        residual[i]?.cancel();
+      }
+      return element;
     }
     const element = document.createElement("div");
     element.setAttribute("data-dm-comment", "");
@@ -483,7 +510,19 @@ class CSSRenderer {
   private recycleElement(element: HTMLDivElement) {
     const animations = element.getAnimations();
     for (let i = 0, n = animations.length; i < n; i++) {
-      animations[i]?.cancel();
+      const anim = animations[i];
+      if (!anim) continue;
+      // finish() first to ensure the animation reaches its end state before
+      // cancel() removes it. Safari sometimes skips cleanup if an animation
+      // is cancelled mid-flight without being finished first.
+      if (anim.playState === "running" || anim.playState === "paused") {
+        try {
+          anim.finish();
+        } catch (_) {
+          /* ignore if already finished */
+        }
+      }
+      anim.cancel();
     }
     element.remove();
     element.style.cssText = "";
