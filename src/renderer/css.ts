@@ -11,6 +11,10 @@ import { getConfig, getFontSizeAndScale, getStrokeColor } from "@/utils";
 const POOL_MAX_SIZE = 512;
 
 const CSS = `
+@keyframes dm-scroll {
+  from { transform: translateX(calc(var(--dm-from) * var(--dm-unit))); }
+  to   { transform: translateX(calc(var(--dm-to) * var(--dm-unit))); }
+}
 [data-dm-css-container] {
   position: fixed;
   top: 0;
@@ -25,6 +29,9 @@ const CSS = `
   overflow: hidden;
   z-index: 1;
   font-family: Arial, "MS PGothic", MSPGothic, MS-PGothic, sans-serif;
+}
+[data-dm-css-container].dm-paused [data-dm-comment] {
+  animation-play-state: paused !important;
 }
 [data-dm-comment] {
   position: absolute;
@@ -81,23 +88,13 @@ class CSSRenderer {
   pause() {
     if (this.paused) return;
     this.paused = true;
-    for (const [, element] of this.activeElements) {
-      const animations = element.getAnimations();
-      for (let i = 0, n = animations.length; i < n; i++) {
-        animations[i]?.pause();
-      }
-    }
+    this.container.classList.add("dm-paused");
   }
 
   resume() {
     if (!this.paused) return;
     this.paused = false;
-    for (const [, element] of this.activeElements) {
-      const animations = element.getAnimations();
-      for (let i = 0, n = animations.length; i < n; i++) {
-        animations[i]?.play();
-      }
-    }
+    this.container.classList.remove("dm-paused");
   }
 
   updateComments(
@@ -120,8 +117,6 @@ class CSSRenderer {
     let startIndex = 0;
     let endIndex = comments.length;
     const limit = this.config.commentLimit;
-    // commentLimit によって描画範囲から外されたコメントの index を記録し、
-    // 回収ループで stillPlaying チェックを回避して即時回収するために使う
     const excludedByLimit = new Set<number>();
     if (limit !== undefined) {
       if (limit === 0) {
@@ -144,7 +139,6 @@ class CSSRenderer {
       }
     }
 
-    // 批量创建新元素，避免逐个 appendChild 触发布局抖动
     const newElements: HTMLDivElement[] = [];
 
     for (let i = startIndex; i < endIndex; i++) {
@@ -165,7 +159,6 @@ class CSSRenderer {
           this.activeSeenGeneration.delete(comment.index);
           continue;
         }
-        // 收集新创建的元素，稍后批量追加到 DOM
         const newEl = this.activeElements.get(comment.index);
         if (newEl) newElements.push(newEl!);
       } else if (
@@ -181,7 +174,6 @@ class CSSRenderer {
 
     this.lastUpdateVpos = vpos;
 
-    // 批量追加新元素，仅触发一次布局
     if (newElements.length > 0) {
       const fragment = document.createDocumentFragment();
       for (let i = 0, n = newElements.length; i < n; i++) {
@@ -192,12 +184,9 @@ class CSSRenderer {
 
     for (const [index, element] of this.activeElements) {
       if (this.activeSeenGeneration.get(index) !== generation) {
-        // commentLimit によって範囲外とされたコメントはアニメーション状態に
-        // 関わらず即時回収する
         if (!excludedByLimit.has(index)) {
-          // 若 CSS 动画仍在播放（running/paused），说明弹幕尚未走完轨迹。
-          // 这通常发生在 seek 重建动画后 timeline 生命周期已到尽头、但动画
-          // currentTime 还很小的情形。此时不应回收，否则弹幕会凭空消失。
+          // CSS animation の再生状態を確認。running/paused ならまだ画面上。
+          // getAnimations() は CSS @keyframes アニメーションも返す。
           const anims = element.getAnimations();
           let stillPlaying = false;
           for (let i = 0, n = anims.length; i < n; i++) {
@@ -281,16 +270,10 @@ class CSSRenderer {
       c.lineHeight / (renderFontSize * fontScale),
     );
     element.style.color = c.color;
-    // z-index を TIMELINE_COMMENT_SORT（owner優先 → index順）に合わせる。
-    // canvas レンダラーは配列順に描画するため layer は描画順に影響しないが、
-    // CSS では z-index が重なり順を決定する。layer を使うと CA 弾幕が
-    // 非 CA 弹幕より前面に出て背景が文字を覆ってしまうため、index で順序付ける。
     element.style.zIndex = String(
       (comment.owner ? 0x40000000 : 0) + comment.index + 1,
     );
     element.style.webkitTextStroke = `calc(${strokeWidthPx} * var(--dm-unit)) ${strokeColor}`;
-    // 描边外缘加一圈半透明渐变，让边缘不过于锐利。
-    // 用固定 px 不跟随 dm-unit 缩放，避免大窗口时渐变过强、小窗口时亚像素舍入失效。
     if (strokeWidthPx > 0) {
       element.style.textShadow = `0 0 2px ${strokeColor}`;
     }
@@ -321,12 +304,7 @@ class CSSRenderer {
 
     this.activeElements.set(comment.index, element);
 
-    if (this.paused) {
-      const animations = element.getAnimations();
-      for (let i = 0, n = animations.length; i < n; i++) {
-        animations[i]?.pause();
-      }
-    }
+    // CSS animation の pause は container の class で一括管理
     return true;
   }
 
@@ -334,10 +312,10 @@ class CSSRenderer {
     const element = this.activeElements.get(comment.index);
     if (!element) return;
 
-    const animations = element.getAnimations();
-    for (let i = 0, n = animations.length; i < n; i++) {
-      animations[i]?.cancel();
-    }
+    // CSS animation をクリア → 再設定
+    element.style.animation = "";
+    // 強制リフロー（次のフレームを待たずに animation をリセット）
+    void element.offsetWidth;
 
     if (!this.setupScrollAnimation(element, comment, vpos, isReverse)) {
       this.recycleElement(element);
@@ -348,13 +326,6 @@ class CSSRenderer {
     }
 
     this.activeElementReverse.set(comment.index, isReverse);
-
-    if (this.paused) {
-      const animations = element.getAnimations();
-      for (let i = 0, n = animations.length; i < n; i++) {
-        animations[i]?.pause();
-      }
-    }
   }
 
   private setupScrollAnimation(
@@ -395,7 +366,6 @@ class CSSRenderer {
     let fromXPx: number;
     let endXPx: number;
     if (isReverse) {
-      // Mirror around canvas center, matching getPosX(…, isReverse=true)
       fromXPx = this.config.canvasWidth - c.width - currentXPx;
       endXPx = this.config.canvasWidth + fontSizePx;
     } else {
@@ -403,17 +373,10 @@ class CSSRenderer {
       endXPx = toXPx;
     }
 
-    element.animate(
-      [
-        { transform: `translateX(calc(${fromXPx} * var(--dm-unit)))` },
-        { transform: `translateX(calc(${endXPx} * var(--dm-unit)))` },
-      ],
-      {
-        duration: remainingSec * 1000,
-        easing: "linear",
-        fill: "forwards",
-      },
-    );
+    // CSS @keyframes 経由: JS の Animation オブジェクトを作らず CSS エンジンに任せる
+    element.style.setProperty("--dm-from", String(fromXPx));
+    element.style.setProperty("--dm-to", String(endXPx));
+    element.style.animation = `dm-scroll ${remainingSec}s linear forwards`;
     return true;
   }
 
@@ -431,7 +394,7 @@ class CSSRenderer {
     fontFamily: string,
     fontWeight: string,
   ): number {
-    const cacheKey = fontFamily + "|" + fontWeight;
+    const cacheKey = `${fontFamily}|${fontWeight}`;
     const cached = this.ascentCache.get(cacheKey);
     if (cached !== undefined) return cached;
 
@@ -488,18 +451,7 @@ class CSSRenderer {
   private getElementFromPool(): HTMLDivElement {
     while (this.pool.length > 0) {
       const element = this.pool.pop() as HTMLDivElement;
-      // Safari/WebKit: cancelled animations may linger on recycled elements
-      // and interfere with new animations. Double-clear any residual ones.
-      const residual = element.getAnimations();
-      for (let i = 0, n = residual.length; i < n; i++) {
-        if (
-          residual[i]?.playState === "running" ||
-          residual[i]?.playState === "paused"
-        ) {
-          residual[i]?.finish();
-        }
-        residual[i]?.cancel();
-      }
+      // @keyframes 方式では animation プロパティをクリアするだけで完了
       return element;
     }
     const element = document.createElement("div");
@@ -508,22 +460,8 @@ class CSSRenderer {
   }
 
   private recycleElement(element: HTMLDivElement) {
-    const animations = element.getAnimations();
-    for (let i = 0, n = animations.length; i < n; i++) {
-      const anim = animations[i];
-      if (!anim) continue;
-      // finish() first to ensure the animation reaches its end state before
-      // cancel() removes it. Safari sometimes skips cleanup if an animation
-      // is cancelled mid-flight without being finished first.
-      if (anim.playState === "running" || anim.playState === "paused") {
-        try {
-          anim.finish();
-        } catch (_) {
-          /* ignore if already finished */
-        }
-      }
-      anim.cancel();
-    }
+    // CSS @keyframes 方式: animation プロパティをクリアするだけで終了
+    element.style.animation = "";
     element.remove();
     element.style.cssText = "";
     element.textContent = "";
