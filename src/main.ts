@@ -1125,6 +1125,12 @@ class NiconiComments {
     }
   }
 
+  public setPlaybackSpeed(speed: number) {
+    if (this.cssRenderer) {
+      this.cssRenderer.setPlaybackSpeed(speed);
+    }
+  }
+
   public getVisibleComments(): Record<string, unknown>[] {
     if (!this.cssRenderer) return [];
     const indices = this.cssRenderer.getVisibleCommentIndices();

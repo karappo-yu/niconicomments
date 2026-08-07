@@ -57,6 +57,7 @@ class CSSRenderer {
   private styleElement: HTMLStyleElement;
   private paused = false;
   private lastUpdateVpos = -1;
+  private playbackSpeed = 1;
   private measureCanvas: HTMLCanvasElement | null = null;
   private ascentCache: Map<string, number> = new Map();
 
@@ -304,6 +305,10 @@ class CSSRenderer {
 
     this.activeElements.set(comment.index, element);
 
+    // 再生速度変更時の再アニメーション用に comment を保持
+    (element as HTMLDivElement & { __dmComment?: IComment }).__dmComment =
+      comment;
+
     // CSS animation の pause は container の class で一括管理
     return true;
   }
@@ -326,6 +331,23 @@ class CSSRenderer {
     }
 
     this.activeElementReverse.set(comment.index, isReverse);
+  }
+
+  setPlaybackSpeed(speed: number) {
+    const next = Number.isFinite(speed) && speed > 0 ? speed : 1;
+    if (next === this.playbackSpeed) return;
+    this.playbackSpeed = next;
+
+    // 再生速度が変わった瞬間だけ、全てのアクティブなスクロール弾幕を
+    // 現在の vpos 基準で再アニメーションする (位置は連続、時間は新速度に合わせて縮尺)。
+    // 固定コメント(ue/shita)はアニメーションを持たず vpos 可視性のみで制御されるため不要。
+    for (const [index, element] of this.activeElements) {
+      const comment = (element as HTMLDivElement & { __dmComment?: IComment })
+        .__dmComment;
+      if (!comment || comment.loc !== "naka") continue;
+      const isReverse = this.activeElementReverse.get(index) ?? false;
+      this.reanimateScroll(comment, this.lastUpdateVpos, isReverse);
+    }
   }
 
   private setupScrollAnimation(
@@ -357,7 +379,9 @@ class CSSRenderer {
     const currentXPx = normalXPx;
     const toXPx = -(c.width + fontSizePx);
     const remainingPx = currentXPx - toXPx;
-    const remainingSec = remainingPx / (speed * 100);
+    // アニメーションは実時間駆動のため、再生速度の倍率で除算して
+    // スクロール時間を「ビデオ時間」基準に揃える (1x では何も変わらない)
+    const remainingSec = remainingPx / (speed * 100) / this.playbackSpeed;
 
     if (remainingSec <= 0) {
       return false;
