@@ -156,7 +156,11 @@ class FlashComment extends BaseComment {
       parseFont(parsedData.font, parsedData.fontSize, this.config),
     );
     const meas = this.measureText({ ...parsedData, scale: 1 });
-    if (this.ctx.options.scale !== 1 && parsedData.layer === -1) {
+    if (
+      this.ctx.options.scale !== 1 &&
+      parsedData.layer === -1 &&
+      !parsedData.owner
+    ) {
       meas.height *= this.ctx.options.scale;
       meas.width *= this.ctx.options.scale;
     }
@@ -256,7 +260,8 @@ class FlashComment extends BaseComment {
     const defaultFontSize = configFontSize.default;
     comment.lineHeight ??= configLineHeight[comment.size].default;
     const widthLimit = configStageSize[comment.full ? "fullWidth" : "width"];
-    const layerScale = comment.layer === -1 ? this.ctx.options.scale : 1;
+    const layerScale =
+      comment.layer === -1 && !comment.owner ? this.ctx.options.scale : 1;
     const drawScale = this._globalScale * layerScale;
     const { scaleX, width, height } = this._measureContent(comment, drawScale);
     let scale = 1;
@@ -433,7 +438,9 @@ class FlashComment extends BaseComment {
               -1 *
               this._globalScale *
               this.comment.scale *
-              (this.comment.layer === -1 ? this.ctx.options.scale : 1),
+              (this.comment.layer === -1 && !this.comment.owner
+                ? this.ctx.options.scale
+                : 1),
           );
         }
       } finally {
@@ -578,7 +585,9 @@ class FlashComment extends BaseComment {
     const scaleY =
       this._globalScale *
       this.comment.scale *
-      (this.comment.layer === -1 ? this.ctx.options.scale : 1);
+      (this.comment.layer === -1 && !this.comment.owner
+        ? this.ctx.options.scale
+        : 1);
     const scaleX = scaleY * this.comment.scaleX;
     const posX = (_posX ?? this.pos.x) / scaleX;
     const posY = (_posY ?? this.pos.y) / scaleY;
@@ -630,7 +639,9 @@ class FlashComment extends BaseComment {
     const scale =
       this._globalScale *
       this.comment.scale *
-      (this.comment.layer === -1 ? this.ctx.options.scale : 1);
+      (this.comment.layer === -1 && !this.comment.owner
+        ? this.ctx.options.scale
+        : 1);
     renderer.setScale(scale * this.comment.scaleX, scale);
     return { renderer };
   }

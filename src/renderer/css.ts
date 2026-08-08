@@ -218,7 +218,9 @@ class CSSRenderer {
     const c = comment.comment;
 
     const drawScale = getConfig(this.config.commentScale, comment.flash);
-    const layerScale = c.layer === -1 ? this.options.scale : 1;
+    // owner コメント(投稿者コメント)はスケール調整の対象外
+    const layerScale =
+      c.layer === -1 && !comment.owner ? this.options.scale : 1;
     const { fontSize: renderFontSize, scale: fontScale } = getFontSizeAndScale(
       c.charSize,
       this.config,
@@ -358,7 +360,9 @@ class CSSRenderer {
   ): boolean {
     const c = comment.comment;
     const commentScale = getConfig(this.config.commentScale, comment.flash);
-    const layerScale = c.layer === -1 ? this.options.scale : 1;
+    // owner コメント(投稿者コメント)はスケール調整の対象外
+    const layerScale =
+      c.layer === -1 && !comment.owner ? this.options.scale : 1;
     const { fontSize: renderFontSize, scale: fontScale } = getFontSizeAndScale(
       c.charSize,
       this.config,

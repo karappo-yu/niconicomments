@@ -136,7 +136,12 @@ class HTML5Comment extends BaseComment {
       parseFont(parsedData.font, parsedData.fontSize, this.config),
     );
     const meas = this.measureText({ ...parsedData, scale: 1 });
-    if (this.ctx.options.scale !== 1 && parsedData.layer === -1) {
+    // owner コメント(投稿者コメント)はスケール調整の対象外
+    if (
+      this.ctx.options.scale !== 1 &&
+      parsedData.layer === -1 &&
+      !parsedData.owner
+    ) {
       meas.height *= this.ctx.options.scale;
       meas.width *= this.ctx.options.scale;
       meas.fontSize *= this.ctx.options.scale;
@@ -250,7 +255,8 @@ class HTML5Comment extends BaseComment {
       comment.full ? "fullWidth" : "width"
     ];
     if (!typeGuard.internal.MeasureInput(comment)) throw new TypeGuardError();
-    const layerScale = comment.layer === -1 ? this.ctx.options.scale : 1;
+    const layerScale =
+      comment.layer === -1 && !comment.owner ? this.ctx.options.scale : 1;
     const measureResult = measure(
       comment,
       this.renderer,
@@ -476,7 +482,10 @@ class HTML5Comment extends BaseComment {
     const paddingTop =
       (10 - scale * 10) *
       ((this.comment.lineCount + 1) / this.config.html5HiResCommentCorrection);
-    const layerScale = this.comment.layer === -1 ? this.ctx.options.scale : 1;
+    const layerScale =
+      this.comment.layer === -1 && !this.comment.owner
+        ? this.ctx.options.scale
+        : 1;
     const paddingTopHeight =
       this.comment.lineHeight *
       paddingTop *
@@ -512,7 +521,9 @@ class HTML5Comment extends BaseComment {
     const drawScale =
       getConfig(this.config.commentScale, false) *
       scale *
-      (this.comment.layer === -1 ? this.ctx.options.scale : 1);
+      (this.comment.layer === -1 && !this.comment.owner
+        ? this.ctx.options.scale
+        : 1);
     const image = this.renderer.getCanvas(HTML5_COMMENT_IMAGE_PADDING);
     try {
       image.setSize(this.comment.width, this.getTextImageBounds().height);
