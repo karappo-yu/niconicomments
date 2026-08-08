@@ -219,11 +219,17 @@ class CSSRenderer {
 
     const drawScale = getConfig(this.config.commentScale, comment.flash);
     // owner コメント(投稿者コメント)はスケール調整の対象外
-    const layerScale =
+    const rawLayerScale =
       c.layer === -1 && !comment.owner ? this.options.scale : 1;
     const { fontSize: renderFontSize, scale: fontScale } = getFontSizeAndScale(
       c.charSize,
       this.config,
+    );
+    // 縮小下限: medium(標準)サイズの 25% 未満には縮小しない
+    const layerScale = this.applyScaleFloor(
+      rawLayerScale,
+      renderFontSize * drawScale * fontScale,
+      drawScale,
     );
     const fontSizePx = renderFontSize * drawScale * fontScale * layerScale;
 
@@ -335,6 +341,34 @@ class CSSRenderer {
     this.activeElementReverse.set(comment.index, isReverse);
   }
 
+  /**
+   * 縮小下限を適用する: 縮小後のフォントサイズを medium(標準)サイズの 25% 未満にしない。
+   * @param layerScale 現在のスケール乗数
+   * @param unscaledFontSizePx スケール適用前のフォントサイズ
+   * @param drawScale コメントスケール
+   */
+  private applyScaleFloor(
+    layerScale: number,
+    unscaledFontSizePx: number,
+    drawScale: number,
+  ): number {
+    if (layerScale >= 1 || unscaledFontSizePx <= 0) return layerScale;
+    const mediumFont = getFontSizeAndScale(
+      this.getMediumCharSize(),
+      this.config,
+    );
+    const minFontSizePx =
+      mediumFont.fontSize * mediumFont.scale * drawScale * 0.25;
+    return Math.max(layerScale, minFontSizePx / unscaledFontSizePx);
+  }
+
+  /** medium(標準)サイズの文字サイズ */
+  private getMediumCharSize(): number {
+    const stageSize = getConfig(this.config.commentStageSize, false);
+    const lineCounts = getConfig(this.config.html5LineCounts, false);
+    return stageSize.height / lineCounts.doubleResized.medium;
+  }
+
   setPlaybackSpeed(speed: number) {
     const next = Number.isFinite(speed) && speed > 0 ? speed : 1;
     if (next === this.playbackSpeed) return;
@@ -361,11 +395,17 @@ class CSSRenderer {
     const c = comment.comment;
     const commentScale = getConfig(this.config.commentScale, comment.flash);
     // owner コメント(投稿者コメント)はスケール調整の対象外
-    const layerScale =
+    const rawLayerScale =
       c.layer === -1 && !comment.owner ? this.options.scale : 1;
     const { fontSize: renderFontSize, scale: fontScale } = getFontSizeAndScale(
       c.charSize,
       this.config,
+    );
+    // 縮小下限: medium(標準)サイズの 25% 未満には縮小しない
+    const layerScale = this.applyScaleFloor(
+      rawLayerScale,
+      renderFontSize * commentScale * fontScale,
+      commentScale,
     );
     const fontSizePx = renderFontSize * commentScale * fontScale * layerScale;
 
