@@ -142,6 +142,23 @@ class HTML5Comment extends BaseComment {
       parsedData.layer === -1 &&
       !parsedData.owner
     ) {
+      // 縮小率下限(測定層): 縮小後の実フォントサイズを medium の 25% 未満にしない。
+      // charSize/lineHeight などの測定データごと引き上げることで、測定・レイアウト・
+      // レンダリングがすべて一致する(86ddc03 のレンダリング層 clamp を置き換え)。
+      const minFontSizePx =
+        getFontSizeAndScale(
+          getCharSize("medium", false, this.config),
+          this.config,
+        ).fontSize * 0.25;
+      const scaledFontSize = meas.fontSize * this.ctx.options.scale;
+      if (scaledFontSize < minFontSizePx) {
+        const floorScale = minFontSizePx / scaledFontSize;
+        meas.height *= floorScale;
+        meas.width *= floorScale;
+        meas.fontSize *= floorScale;
+        meas.lineHeight *= floorScale;
+        meas.charSize *= floorScale;
+      }
       meas.height *= this.ctx.options.scale;
       meas.width *= this.ctx.options.scale;
       meas.fontSize *= this.ctx.options.scale;
