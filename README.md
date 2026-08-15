@@ -11,7 +11,7 @@
 
 このリポジトリは karappo-yu の個人フォークで、[IINA 用コメント描画プラグイン (Danmaku Cosmos)](https://github.com/karappo-yu/iina-plugin-danmaku-cosmos) 専用にカスタマイズしたものです。**アップストリーム (xpadev-net/niconicomments) とは同期していません。**
 
-IINA の WKWebView 環境に合わせた変更が中心のため、汎用ライブラリとしての互換性・保守性は保証しません。
+IINA の WKWebView 環境に特化した変更が中心のため、汎用ライブラリとしての互換性・保守性は保証しません。
 
 ### 主な変更点
 
