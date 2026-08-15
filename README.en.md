@@ -6,6 +6,31 @@
 
 [[日本語](https://github.com/xpadev-net/niconicomments/blob/develop/README.md)]
 
+## ⚠️ About this fork
+
+**This repository is a personal fork by karappo-yu. It intentionally does NOT track upstream (xpadev-net/niconicomments).**
+
+This fork exists solely to serve the [IINA danmaku plugin (Danmaku Cosmos)](https://github.com/karappo-yu/iina-plugin-danmaku-cosmos). It contains IINA/WKWebView-specific changes and does not guarantee general-purpose compatibility.
+
+### Changes vs upstream
+
+| Change | Description |
+|---|---|
+| **CSS renderer** `src/renderer/css.ts` | True DOM-based rendering (div + CSS `@keyframes`): crisp small fonts and GPU-composited smooth scrolling in WKWebView. Enabled via `mode: "css"`. Mutually exclusive with canvas rendering |
+| **Owner scale exemption** | Owner comments are excluded from font scale adjustment so comment-art (CA) composition stays intact (CSS + HTML5 + Flash) |
+| **Font scale floor** | When scaling down, font size never drops below 25% of medium size, enforced at the measurement layer so measurement/layout/rendering stay consistent |
+| **Playback-speed control** `setPlaybackSpeed()` | Re-animates active scrolling danmaku on playback-speed change so CSS real-time animations stay aligned to video time |
+| **`@reverse` support** | Reverse-direction scrolling (`@reverse` nicoscript) supported in CSS mode |
+| **Object pool** | Reuses up to 512 DOM nodes via a pool to cut DOM churn during burst |
+| **`mode: "css"` added** | `"css"` added to `ModeType` and typeGuard |
+| **`_resolveCommentPositions` extracted** | Position-resolution logic extracted in main.ts so CSS mode can resolve positions directly from `drawCanvas` |
+| **`pauseCSS` / `resumeCSS` / `getVisibleComments`** | Public CSS-mode APIs: pause/resume and visible-comment listing |
+
+### Sync policy
+
+Upstream changes are **NOT merged**. This fork is freely modified to fit the IINA plugin; bugs and features are maintained independently.
+
+---
 Comment rendering library that is somewhat compatible with the official Nico Nico Douga player  
 Reference： https://xpadev-net.github.io/niconicomments/  
 Github： https://github.com/xpadev-net/niconicomments  
