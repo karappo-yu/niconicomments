@@ -5,6 +5,7 @@
 [![TypeDoc](https://github.com/xpadev-net/niconicomments/actions/workflows/typedoc.yml/badge.svg?branch=master)](https://github.com/xpadev-net/niconicomments/actions/workflows/typedoc.yml)
 
 [[日本語](https://github.com/xpadev-net/niconicomments/blob/develop/README.md)]
+[[中文](https://github.com/karappo-yu/niconicomments/blob/develop/README.zh.md)]
 
 ## ⚠️ About this fork
 
