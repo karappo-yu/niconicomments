@@ -208,10 +208,11 @@ class TestHTML5Comment extends HTML5Comment {
 
 type FormattedCommentOverride = Pick<
   Partial<FormattedComment>,
+  | "layer"
   | "date"
   | "date_usec"
+  | "ignoreScale"
   | "is_my_post"
-  | "layer"
   | "owner"
   | "premium"
   | "user_id"
@@ -234,6 +235,7 @@ const formattedComment = (
   mail,
   user_id: overrides.user_id ?? id,
   layer: overrides.layer ?? -1,
+  ignoreScale: overrides.ignoreScale ?? false,
   is_my_post: overrides.is_my_post ?? false,
 });
 

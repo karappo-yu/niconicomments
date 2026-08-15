@@ -16,7 +16,11 @@ const createMovableComment = (
   index: number,
   vpos: number,
   long: number,
-  options: { layer?: number; owner?: boolean; width?: number } = {},
+  options: {
+    layer?: number;
+    owner?: boolean;
+    width?: number;
+  } = {},
 ) =>
   ({
     comment: {},
@@ -31,6 +35,7 @@ const createMovableComment = (
     posY: -1,
     owner: options.owner ?? false,
     layer: options.layer ?? -1,
+    ignoreScale: false,
     mail: [],
     content: `comment ${index}`,
     draw() {},
@@ -143,9 +148,13 @@ describe("movable comment collision", () => {
   });
 
   test.each([
-    ["owner", { owner: true }],
-    ["layer", { layer: 0 }],
-  ])("does not separate intersecting mixed-duration comments with a different %s", (_, differingIdentity) => {
+    // Owner-vs-viewer separation is now expressed purely as distinct
+    // layer values (assigned per-owner at comment construction
+    // time — see ZFormattedComment in src/@types/format.formatted.ts),
+    // not a separate owner comparison inside getPosY.
+    ["owner sentinel", { layer: -2 }],
+    ["CA group", { layer: 0 }],
+  ])("does not separate intersecting mixed-duration comments with a different %s layer", (_, differingIdentity) => {
     const collision = createCollision();
     const timeline: Timeline = {};
     const slowLeading = createMovableComment(1, 0, 1000);

@@ -115,6 +115,9 @@ class HTML5Comment extends BaseComment {
   override getCommentSize(
     parsedData: FormattedCommentWithFont,
   ): FormattedCommentWithSize {
+    // owner コメント(投稿者コメント)はスケール調整の対象外(fork)
+    const layerScale =
+      parsedData.ignoreScale || parsedData.owner ? 1 : this.ctx.options.scale;
     if (parsedData.invisible) {
       return {
         ...parsedData,
@@ -129,28 +132,24 @@ class HTML5Comment extends BaseComment {
         content: [],
         scaleX: 1,
         scale: 1,
+        layerScale,
       };
     }
     this.renderer.save();
     this.renderer.setFont(
       parseFont(parsedData.font, parsedData.fontSize, this.config),
     );
-    const meas = this.measureText({ ...parsedData, scale: 1 });
-    // owner コメント(投稿者コメント)はスケール調整の対象外
-    if (
-      this.ctx.options.scale !== 1 &&
-      parsedData.layer === -1 &&
-      !parsedData.owner
-    ) {
-      // 縮小率下限(測定層): 縮小後の実フォントサイズを medium の 25% 未満にしない。
+    const meas = this.measureText({ ...parsedData, scale: 1, layerScale });
+    if (layerScale !== 1) {
+      // 縮小率下限(fork): 縮小後の実フォントサイズを medium の 25% 未満にしない。
       // charSize/lineHeight などの測定データごと引き上げることで、測定・レイアウト・
-      // レンダリングがすべて一致する(86ddc03 のレンダリング層 clamp を置き換え)。
+      // レンダリングがすべて一致する(cb1fff5)。
       const minFontSizePx =
         getFontSizeAndScale(
           getCharSize("medium", false, this.config),
           this.config,
         ).fontSize * 0.25;
-      const scaledFontSize = meas.fontSize * this.ctx.options.scale;
+      const scaledFontSize = meas.fontSize * layerScale;
       if (scaledFontSize < minFontSizePx) {
         const floorScale = minFontSizePx / scaledFontSize;
         meas.height *= floorScale;
@@ -159,9 +158,9 @@ class HTML5Comment extends BaseComment {
         meas.lineHeight *= floorScale;
         meas.charSize *= floorScale;
       }
-      meas.height *= this.ctx.options.scale;
-      meas.width *= this.ctx.options.scale;
-      meas.fontSize *= this.ctx.options.scale;
+      meas.height *= layerScale;
+      meas.width *= layerScale;
+      meas.fontSize *= layerScale;
     }
     this.renderer.restore();
     return {
@@ -177,6 +176,7 @@ class HTML5Comment extends BaseComment {
       content: meas.content,
       scaleX: meas.scaleX,
       scale: meas.scale,
+      layerScale,
     };
   }
 
@@ -272,8 +272,7 @@ class HTML5Comment extends BaseComment {
       comment.full ? "fullWidth" : "width"
     ];
     if (!typeGuard.internal.MeasureInput(comment)) throw new TypeGuardError();
-    const layerScale =
-      comment.layer === -1 && !comment.owner ? this.ctx.options.scale : 1;
+    const layerScale = comment.layerScale;
     const measureResult = measure(
       comment,
       this.renderer,
@@ -499,10 +498,7 @@ class HTML5Comment extends BaseComment {
     const paddingTop =
       (10 - scale * 10) *
       ((this.comment.lineCount + 1) / this.config.html5HiResCommentCorrection);
-    const layerScale =
-      this.comment.layer === -1 && !this.comment.owner
-        ? this.ctx.options.scale
-        : 1;
+    const layerScale = this.comment.layerScale;
     const paddingTopHeight =
       this.comment.lineHeight *
       paddingTop *
@@ -538,9 +534,7 @@ class HTML5Comment extends BaseComment {
     const drawScale =
       getConfig(this.config.commentScale, false) *
       scale *
-      (this.comment.layer === -1 && !this.comment.owner
-        ? this.ctx.options.scale
-        : 1);
+      this.comment.layerScale;
     const image = this.renderer.getCanvas(HTML5_COMMENT_IMAGE_PADDING);
     try {
       image.setSize(this.comment.width, this.getTextImageBounds().height);

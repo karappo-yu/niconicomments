@@ -93,6 +93,7 @@ const createComment = (id: number): FormattedComment => ({
   mail: ["ue"],
   user_id: id,
   layer: -1,
+  ignoreScale: false,
   is_my_post: false,
 });
 
