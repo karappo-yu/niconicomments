@@ -9,7 +9,7 @@
 
 ## ⚠️ このフォークについて
 
-このリポジトリは karappo-yu の個人フォークで、[IINA 用コメント描画プラグイン (Danmaku Cosmos)](https://github.com/karappo-yu/iina-plugin-danmaku-cosmos) 専用にカスタマイズしたものです。**アップストリーム (xpadev-net/niconicomments) とは同期していません。**
+このリポジトリは karappo-yu の個人フォークで、[IINA 用コメント描画プラグイン (Danmaku Cosmos)](https://github.com/karappo-yu/iina-plugin-danmaku-cosmos) 専用にカスタマイズしたものです。
 
 IINA の WKWebView 環境に特化したため、汎用ライブラリとしての互換性・保守性は保証しません。
 
@@ -24,10 +24,6 @@ IINA の WKWebView 環境に特化したため、汎用ライブラリとして�
 | **`mode: "css"` の追加** | `ModeType` と typeGuard に `"css"` を追加 |
 | **`_resolveCommentPositions` の切り出し** | CSS モードが `drawCanvas` から直接位置を解決できるよう、main.ts の位置解決ロジックを分離 |
 | **CSS モード用の公開 API** | `pauseCSS` / `resumeCSS` / `getVisibleComments`(一時停止・再開・表示中のコメント一覧の取得) |
-
-### 同期について
-
-このフォークでは**アップストリームの変更を取り込みません**。IINA プラグインの動作に合わせて自由に変更し、バグ修正も独自に行います。
 
 ---
 ニコニコ動画の公式プレイヤー互換の高パフォーマンスなコメント描画ライブラリ  

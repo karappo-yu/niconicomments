@@ -9,9 +9,9 @@
 
 ## ⚠️ About this fork
 
-**This repository is a personal fork by karappo-yu. It intentionally does NOT track upstream (xpadev-net/niconicomments).**
+This repository is a personal fork by karappo-yu, customized specifically for the [IINA danmaku plugin (Danmaku Cosmos)](https://github.com/karappo-yu/iina-plugin-danmaku-cosmos).
 
-This fork exists solely to serve the [IINA danmaku plugin (Danmaku Cosmos)](https://github.com/karappo-yu/iina-plugin-danmaku-cosmos). It contains IINA/WKWebView-specific changes and does not guarantee general-purpose compatibility.
+It is specialized for IINA's WKWebView environment, so general-purpose compatibility is not guaranteed.
 
 ### Changes vs upstream
 
@@ -24,10 +24,6 @@ This fork exists solely to serve the [IINA danmaku plugin (Danmaku Cosmos)](http
 | **`mode: "css"` added** | `"css"` added to `ModeType` and typeGuard |
 | **`_resolveCommentPositions` extracted** | Position-resolution logic extracted in main.ts so CSS mode can resolve positions directly from `drawCanvas` |
 | **`pauseCSS` / `resumeCSS` / `getVisibleComments`** | Public CSS-mode APIs: pause/resume and visible-comment listing |
-
-### Sync policy
-
-Upstream changes are **NOT merged**. This fork is freely modified to fit the IINA plugin; bugs and features are maintained independently.
 
 ---
 Comment rendering library that is somewhat compatible with the official Nico Nico Douga player  

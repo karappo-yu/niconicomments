@@ -7,9 +7,9 @@
 
 ## ⚠️ 关于本 fork
 
-**本仓库为 karappo-yu 的个人 fork,有意不与上游 (xpadev-net/niconicomments) 同步。**
+本仓库为 karappo-yu 的个人 fork,专为 [IINA 弹幕插件 (Danmaku Cosmos)](https://github.com/karappo-yu/iina-plugin-danmaku-cosmos) 定制。
 
-此 fork 仅服务于 [IINA 弹幕插件 (Danmaku Cosmos)](https://github.com/karappo-yu/iina-plugin-danmaku-cosmos),包含大量 IINA/WKWebView 特化改动,不保证作为通用库的兼容性与可维护性。
+特化于 IINA 的 WKWebView 环境,不保证作为通用库的兼容性与可维护性。
 
 ## 改动清单(相对上游)
 
@@ -22,10 +22,6 @@
 | **`mode: "css"` 接入** | 在 `ModeType` 与 typeGuard 中新增 `"css"` 模式 |
 | **`_resolveCommentPositions` 抽取** | 从 main.ts 抽出位置解析逻辑,CSS 模式可直接从 `drawCanvas` 解析位置后交给 DOM 渲染器 |
 | **`pauseCSS` / `resumeCSS` / `getVisibleComments`** | CSS 模式专用公开 API:暂停/恢复、获取当前可见弹幕列表 |
-
-## 同步策略
-
-**不合并上游改动。** 本 fork 按 IINA 插件需求自由修改,bug 修复与功能维护均独立进行。上游的 #410(layer 重构)、#412(nico:scale 命令)等后续改动均未采纳——本 fork 的功能(owner 豁免、CSS 渲染、字号下限)以自研实现为主,不与上游机制对齐。
 
 ---
 
