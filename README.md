@@ -7,39 +7,27 @@
 [[English](https://github.com/xpadev-net/niconicomments/blob/develop/README.en.md)]
 [[中文](https://github.com/karappo-yu/niconicomments-dom/blob/develop/README.zh.md)]
 
-## ⚠️ このフォークについて / About this fork
+## ⚠️ このフォークについて
 
-**このリポジトリは karappo-yu による個人フォークであり、アップストリーム (xpadev-net/niconicomments) との同期は意図的に行っていません。**
+このリポジトリは karappo-yu の個人フォークで、[IINA 用コメント描画プラグイン (Danmaku Cosmos)](https://github.com/karappo-yu/iina-plugin-danmaku-cosmos) 専用にカスタマイズしたものです。**アップストリーム (xpadev-net/niconicomments) とは同期していません。**
 
-**This repository is a personal fork by karappo-yu. It intentionally does NOT track upstream (xpadev-net/niconicomments).**
+IINA の WKWebView 環境に合わせた変更が中心のため、汎用ライブラリとしての互換性・保守性は保証しません。
 
-**本仓库为 karappo-yu 的个人 fork,有意不与上游 (xpadev-net/niconicomments) 同步。**
+### 主な変更点
 
-目的は [IINA 弹幕插件 (Danmaku Cosmos)](https://github.com/karappo-yu/iina-plugin-danmaku-cosmos) 専用のカスタマイズです。IINA の WKWebView 環境に特化した変更が多数含まれており、汎用ライブラリとしての互換性・保守性は保証されません。
-
-This fork exists solely to serve the [IINA danmaku plugin (Danmaku Cosmos)](https://github.com/karappo-yu/iina-plugin-danmaku-cosmos). It contains IINA/WKWebView-specific changes and does not guarantee general-purpose compatibility.
-
-此 fork 仅服务于 [IINA 弹幕插件 (Danmaku Cosmos)](https://github.com/karappo-yu/iina-plugin-danmaku-cosmos),包含大量 IINA/WKWebView 特化改动,不保证作为通用库的兼容性与可维护性。
-
-### 変更点一覧 / Changes / 改动清单
-
-| 変更 / Change / 改动 | 説明 / Description / 说明 |
+| 変更 | 説明 |
 |---|---|
-| **CSS レンダラー追加** `src/renderer/css.ts` | 真の DOM ベース描画 (div + CSS `@keyframes`)。WKWebView で小さいフォントでもシャープに描画され、GPU 合成でスクロールが滑らか。`mode: "css"` で有効。canvas の代わりに DOM ノードで弾幕を描くため、Canvas モードと併用は不可 / True DOM-based rendering (div + CSS `@keyframes`): crisp small fonts and GPU-composited smooth scrolling in WKWebView. Enabled via `mode: "css"`. Mutually exclusive with canvas rendering / 真正的 DOM 渲染 (div + CSS `@keyframes`):小字号依然锐利,滚动走 GPU 合成。通过 `mode: "css"` 启用,与 canvas 渲染互斥 |
-| **owner コメントのスケール除外** | 投稿者コメント (owner) はフォントスケール調整の対象外にし、CA (コメントアート) の構図が崩れないようにした。適用箇所: CSS + HTML5 + Flash / Owner comments are excluded from font scale adjustment so comment-art (CA) composition stays intact (CSS + HTML5 + Flash) / 投稿者评论不参与字号缩放,保护 CA(弹幕艺术)构图(CSS + HTML5 + Flash 三处) |
-| **フォント縮小下限 (font scale floor)** | 縮小時にフォントが medium サイズの 25% 未満にならないよう測定レイヤーで底上げ。測定・レイアウト・描画のデータが一致する実装 / When scaling down, font size never drops below 25% of medium size, enforced at the measurement layer so measurement/layout/rendering stay consistent / 缩小时字号不低于 medium 的 25%,在测量层统一抬升,保证测量/布局/渲染一致 |
-| **オブジェクトプール** | 最大 512 個の DOM ノードを再利用するプールで、バースト時の DOM 生成/破棄コストを削減 / Reuses up to 512 DOM nodes via a pool to cut DOM churn during burst / 复用最多 512 个 DOM 节点,降低弹幕爆发时的 DOM 创建/销毁开销 |
-| **`mode: "css"` 追加** | `ModeType` と typeGuard に `"css"` を追加 / `"css"` added to `ModeType` and typeGuard / 在 `ModeType` 与 typeGuard 中新增 `"css"` |
-| **`_resolveCommentPositions` 抽出** | CSS モードが `drawCanvas` から直接位置解決できるよう main.ts の位置解決ロジックを分離 / Position-resolution logic extracted in main.ts so CSS mode can resolve positions directly from `drawCanvas` / 从 main.ts 抽出位置解析逻辑,CSS 模式可直接从 `drawCanvas` 解析位置 |
-| **`pauseCSS` / `resumeCSS` / `getVisibleComments`** | CSS モード専用の公開 API。一時停止/再開、可視弾幕一覧を取得 / Public CSS-mode APIs: pause/resume and visible-comment listing / CSS 模式专用公开 API:暂停/恢复、获取可见弹幕列表 |
+| **CSS レンダラーの追加** `src/renderer/css.ts` | div と CSS アニメーションによる DOM 描画。WKWebView でも小さな文字がくっきり表示され、スクロールは GPU 合成で滑らかに動きます。`mode: "css"` で有効 |
+| **投稿者コメントのスケール除外** | 投稿者コメントはフォントのスケール調整の対象外にし、CA(コメントアート)のレイアウトが崩れないようにしました。CSS / HTML5 / Flash すべてに適用 |
+| **フォント縮小の下限** | 縮小時、フォントが medium サイズの 25% 未満にならないよう測定レイヤーで調整。測定・レイアウト・描画のデータが一致します |
+| **DOM ノードのプール** | 最大 512 個の DOM ノードを再利用し、コメントが集中する場面でも生成・破棄のコストを抑えます |
+| **`mode: "css"` の追加** | `ModeType` と typeGuard に `"css"` を追加 |
+| **`_resolveCommentPositions` の切り出し** | CSS モードが `drawCanvas` から直接位置を解決できるよう、main.ts の位置解決ロジックを分離 |
+| **CSS モード用の公開 API** | `pauseCSS` / `resumeCSS` / `getVisibleComments`(一時停止・再開・表示中のコメント一覧の取得) |
 
-### 同期ポリシー / Sync policy / 同步策略
+### 同期について
 
-アップストリームの変更は**取り込みません**。このフォークは IINA プラグインの動作に合わせて自由に変更します。バグ修正・機能追加は独自にメンテナンスします。
-
-Upstream changes are **NOT merged**. This fork is freely modified to fit the IINA plugin; bugs and features are maintained independently.
-
-**不合并上游改动**。本 fork 按 IINA 插件需求自由修改,bug 修复与功能维护均独立进行。
+このフォークでは**アップストリームの変更を取り込みません**。IINA プラグインの動作に合わせて自由に変更し、バグ修正も独自に行います。
 
 ---
 ニコニコ動画の公式プレイヤー互換の高パフォーマンスなコメント描画ライブラリ  
