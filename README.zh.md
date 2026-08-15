@@ -2,8 +2,8 @@
 
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/xpadev-net/niconicomments/blob/master/LICENSE)
 
-[[日本語](https://github.com/karappo-yu/niconicomments/blob/develop/README.md)]
-[[English](https://github.com/karappo-yu/niconicomments/blob/develop/README.en.md)]
+[[日本語](https://github.com/karappo-yu/niconicomments-dom/blob/develop/README.md)]
+[[English](https://github.com/karappo-yu/niconicomments-dom/blob/develop/README.en.md)]
 
 ## ⚠️ 关于本 fork
 
@@ -18,7 +18,6 @@
 | **CSS 渲染器** `src/renderer/css.ts` | 真正的 DOM 渲染 (div + CSS `@keyframes`):小字号依然锐利(系统字体管线 vs canvas 位图采样),滚动走 GPU 合成。通过 `mode: "css"` 启用,与 canvas 渲染互斥 |
 | **owner 评论缩放豁免** | 投稿者评论不参与字号缩放,保护 CA(弹幕艺术)构图不因缩放变形(CSS + HTML5 + Flash 三处) |
 | **字号缩小下限 (font scale floor)** | 缩小时字号不低于 medium 的 25%。在测量层统一抬升 charSize/lineHeight/fontSize/height/width,保证测量、布局、渲染数据一致 |
-| **CSS 模式播放速度 & `@reverse`** | CSS 模式实现与 canvas 模式等价的播放速度跟随 (`setPlaybackSpeed`) 与反向滚动 (`@reverse`)(canvas 模式原本就支持,此处是 CSS 渲染器补齐同等能力) |
 | **对象池** | 最多复用 512 个 DOM 节点,降低弹幕爆发时的 DOM 创建/销毁开销 |
 | **`mode: "css"` 接入** | 在 `ModeType` 与 typeGuard 中新增 `"css"` 模式 |
 | **`_resolveCommentPositions` 抽取** | 从 main.ts 抽出位置解析逻辑,CSS 模式可直接从 `drawCanvas` 解析位置后交给 DOM 渲染器 |

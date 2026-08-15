@@ -5,7 +5,7 @@
 [![TypeDoc](https://github.com/xpadev-net/niconicomments/actions/workflows/typedoc.yml/badge.svg?branch=master)](https://github.com/xpadev-net/niconicomments/actions/workflows/typedoc.yml)
 
 [[日本語](https://github.com/xpadev-net/niconicomments/blob/develop/README.md)]
-[[中文](https://github.com/karappo-yu/niconicomments/blob/develop/README.zh.md)]
+[[中文](https://github.com/karappo-yu/niconicomments-dom/blob/develop/README.zh.md)]
 
 ## ⚠️ About this fork
 
@@ -20,7 +20,6 @@ This fork exists solely to serve the [IINA danmaku plugin (Danmaku Cosmos)](http
 | **CSS renderer** `src/renderer/css.ts` | True DOM-based rendering (div + CSS `@keyframes`): crisp small fonts and GPU-composited smooth scrolling in WKWebView. Enabled via `mode: "css"`. Mutually exclusive with canvas rendering |
 | **Owner scale exemption** | Owner comments are excluded from font scale adjustment so comment-art (CA) composition stays intact (CSS + HTML5 + Flash) |
 | **Font scale floor** | When scaling down, font size never drops below 25% of medium size, enforced at the measurement layer so measurement/layout/rendering stay consistent |
-| **Playback-speed & `@reverse` in CSS mode** | CSS mode implements playback-speed tracking (`setPlaybackSpeed`) and reverse scrolling (`@reverse`) equivalent to canvas mode (already available in canvas) |
 | **Object pool** | Reuses up to 512 DOM nodes via a pool to cut DOM churn during burst |
 | **`mode: "css"` added** | `"css"` added to `ModeType` and typeGuard |
 | **`_resolveCommentPositions` extracted** | Position-resolution logic extracted in main.ts so CSS mode can resolve positions directly from `drawCanvas` |
