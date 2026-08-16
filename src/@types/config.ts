@@ -84,6 +84,12 @@ export type BaseConfig = {
   }[];
   commentLimit: number | undefined;
   hideCommentOrder: "asc" | "desc";
+  /**
+   * 固定弹幕(ue/shita)渐进合并(combo): 同文本固定弹幕在前一条还在屏上时
+   * 到达 → 在原位渐进显示为 原文x2, x3…(显示计时随最后到达者重置)。
+   * 关闭时固定弹幕原样逐条显示。滚动弹幕(naka)不受此配置影响。
+   */
+  fixedCombo: boolean;
   lineBreakCount: { [key in CommentSize]: number };
   nakaCommentSpeedOffset: number;
   atButtonPadding: number;

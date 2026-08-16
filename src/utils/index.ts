@@ -3,6 +3,7 @@ export * from "./color";
 export * from "./comment";
 export * from "./commentArt";
 export * from "./config";
+export * from "./fixedCombo";
 export * from "./flash";
 export * from "./niconico";
 export * from "./sort";

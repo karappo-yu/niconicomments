@@ -313,6 +313,11 @@ const initConfig = () => {
      */
     hideCommentOrder: "asc",
     /**
+     * 固定コメント(ue/shita)の段階的マージ(combo)
+     * 同一テキストの固定コメントが先行コメント表示中に到達すると x2, x3… と段階的に更新される
+     */
+    fixedCombo: false,
+    /**
      * 改行リサイズの行数
      */
     lineBreakCount: {

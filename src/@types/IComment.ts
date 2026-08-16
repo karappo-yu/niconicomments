@@ -26,6 +26,12 @@ export interface IComment {
   layer: number;
   mail: string[];
   content: string;
+  /**
+   * 固定弹幕 combo 宿主预留的占位宽度(canvas 坐标)。
+   * 渲染器据此给宿主元素设置固定宽度,使 xN 数字增长时整体位置不移动。
+   * 仅 fixedCombo 开启且该评论是合并宿主时存在。
+   */
+  fixedComboReservedWidth?: number;
   image?: IRenderer | null;
   draw: (
     vpos: number,

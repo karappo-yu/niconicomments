@@ -15,6 +15,10 @@ const CSS = `
   from { transform: translateX(calc(var(--dm-from) * var(--dm-unit))); }
   to   { transform: translateX(calc(var(--dm-to) * var(--dm-unit))); }
 }
+@keyframes dm-pop {
+  from { transform: translateX(-50%) scale(1.15); }
+  to   { transform: translateX(-50%) scale(1); }
+}
 [data-dm-css-container] {
   position: fixed;
   top: 0;
@@ -143,7 +147,7 @@ class CSSRenderer {
     const newElements: HTMLDivElement[] = [];
 
     for (let i = startIndex; i < endIndex; i++) {
-      const isReverse = comments[i]!.owner
+      const isReverse = comments[i]?.owner
         ? frameActiveState.reverseActiveOwner
         : frameActiveState.reverseActiveViewer;
       const comment = comments[i];
@@ -167,8 +171,13 @@ class CSSRenderer {
         (isSeek || isReverse !== this.activeElementReverse.get(comment.index))
       ) {
         this.reanimateScroll(comment, vpos, isReverse);
-      } else if (isSeek) {
-        this.setupFixedAnimation(element);
+      } else {
+        if (comment.loc !== "naka") {
+          this.syncFixedCombo(element, comment);
+        }
+        if (isSeek) {
+          this.setupFixedAnimation(element);
+        }
       }
       drawnCount++;
     }
@@ -188,10 +197,14 @@ class CSSRenderer {
         if (!excludedByLimit.has(index)) {
           // CSS animation の再生状態を確認。running/paused ならまだ画面上。
           // getAnimations() は CSS @keyframes アニメーションも返す。
+          // dm-pop(combo 演出)は装飾のみで、生存判定から除外する。
           const anims = element.getAnimations();
           let stillPlaying = false;
           for (let i = 0, n = anims.length; i < n; i++) {
-            const state = anims[i]?.playState;
+            const anim = anims[i];
+            if (!anim) continue;
+            if ((anim as CSSAnimation).animationName === "dm-pop") continue;
+            const state = anim.playState;
             if (state === "running" || state === "paused") {
               stillPlaying = true;
               break;
@@ -251,6 +264,12 @@ class CSSRenderer {
     }
 
     element.textContent = comment.content;
+
+    // fixedCombo 宿主: 预留占位宽度(居中盒 + 文本左锚定),xN 增长位置不移动
+    if (comment.fixedComboReservedWidth !== undefined) {
+      element.style.width = `calc(${comment.fixedComboReservedWidth} * var(--dm-unit))`;
+      element.style.textAlign = "left";
+    }
 
     const lineWidth = getConfig(this.config.contextLineWidth, comment.flash);
     const strokeColor = getStrokeColor(c, this.config);
@@ -347,7 +366,7 @@ class CSSRenderer {
     for (const [index, element] of this.activeElements) {
       const comment = (element as HTMLDivElement & { __dmComment?: IComment })
         .__dmComment;
-      if (!comment || comment.loc !== "naka") continue;
+      if (comment?.loc !== "naka") continue;
       const isReverse = this.activeElementReverse.get(index) ?? false;
       this.reanimateScroll(comment, this.lastUpdateVpos, isReverse);
     }
@@ -413,6 +432,25 @@ class CSSRenderer {
   private setupFixedAnimation(element: HTMLDivElement) {
     element.style.left = "50%";
     element.style.transform = "translateX(-50%)";
+  }
+
+  /**
+   * fixedCombo 宿主の段階更新を DOM に反映する。
+   * エンジン側(_updateFixedCombo)が comment.content / comment.color を更新済みなので、
+   * ここでテキストと色を同期し、テキスト変化時に pop アニメーションを再生する。
+   * 要素は固定幅の予約ボックス(中央揃え・テキスト左詰め)のため位置は動かない。
+   */
+  private syncFixedCombo(element: HTMLDivElement, comment: IComment): void {
+    const c = comment.comment;
+    if (element.textContent !== comment.content) {
+      element.textContent = comment.content;
+      // 色が変わるのは計数が 1↔2 を跨ぐ時だけ = テキスト変化と同時
+      element.style.color = c.color;
+      // pop: アニメーションを再トリガー(クリア → 強制リフロー → 再設定)
+      element.style.animation = "";
+      void element.offsetWidth;
+      element.style.animation = "dm-pop 0.25s ease-out";
+    }
   }
 
   private getEffectiveAlpha(c: FormattedCommentWithSize): number {
