@@ -23,6 +23,8 @@ export type FixedComboChain = {
   color: string;
   /** 各成员 vpos(升序,含宿主) */
   memberVposes: number[];
+  /** 各成员 index(与 memberVposes 同序;接续时宿主的 z 序提升到已接续成员的最大 index) */
+  memberIndices: number[];
   /** 链显示结束 vpos = 最后成员的 vpos + long */
   end: number;
   /** 宿主原始字号数据(超宽文本测量会缩放字号,计数更新前须还原防止漂移) */
@@ -98,7 +100,8 @@ const makeChain = (members: IComment[]): FixedComboChain | null => {
     base,
     originalColor,
     color,
-    memberVposes: members.map((m) => m.vpos).sort((a, b) => a - b),
+    memberVposes: members.map((m) => m.vpos),
+    memberIndices: members.map((m) => m.index),
     end,
     charSize,
     lineHeight,

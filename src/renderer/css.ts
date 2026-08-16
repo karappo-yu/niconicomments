@@ -288,7 +288,9 @@ class CSSRenderer {
     );
     element.style.color = c.color;
     element.style.zIndex = String(
-      (comment.owner ? 0x40000000 : 0) + comment.index + 1,
+      (comment.owner ? 0x40000000 : 0) +
+        (comment.fixedComboZIndex ?? comment.index) +
+        1,
     );
     element.style.webkitTextStroke = `calc(${strokeWidthPx} * var(--dm-unit)) ${strokeColor}`;
     if (strokeWidthPx > 0) {
@@ -440,6 +442,13 @@ class CSSRenderer {
       element.textContent = comment.content;
       // 色が変わるのは計数が 1↔2 を跨ぐ時だけ = テキスト変化と同時
       element.style.color = c.color;
+      // z 序: 計数が進む(生命周期が繋がる)たびに、最後に繋がったメンバーの
+      // 层级へ引き上げ、それまでに自分の上を通過した弾幕を覆う
+      element.style.zIndex = String(
+        (comment.owner ? 0x40000000 : 0) +
+          (comment.fixedComboZIndex ?? comment.index) +
+          1,
+      );
       // pop: アニメーションを再トリガー(クリア → 強制リフロー → 再設定)
       element.style.animation = "";
       void element.offsetWidth;

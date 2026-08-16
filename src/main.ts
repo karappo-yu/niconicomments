@@ -50,7 +50,8 @@ import * as internal from "./internal";
 const EMPTY_TIMELINE = Object.freeze([]) as readonly IComment[];
 const BAN_FRAME_POSITION_RESOLUTION_BUDGET = 256;
 const TIMELINE_COMMENT_SORT = (a: IComment, b: IComment) =>
-  Number(a.owner) - Number(b.owner) || a.index - b.index;
+  Number(a.owner) - Number(b.owner) ||
+  (a.fixedComboZIndex ?? a.index) - (b.fixedComboZIndex ?? b.index);
 const isFiniteVpos = (vpos: number) => Number.isFinite(vpos);
 const isFinitePosition = (pos: Position) =>
   Number.isFinite(pos.x) && Number.isFinite(pos.y);
@@ -651,6 +652,9 @@ class NiconiComments {
         host.content = count > 1 ? `${chain.base}x${count}` : chain.base;
         host.comment.height = chain.height;
         host.comment.color = count > 1 ? chain.color : chain.originalColor;
+        // z 序提升到已接续的最后一条成员的层级:生命周期被续上时,
+        // 宿主覆盖此前飘过它上面的弹幕(后到的弹幕 index 更大,仍在其上)
+        host.fixedComboZIndex = chain.memberIndices[count - 1] ?? host.index;
       } catch (e) {
         this._log(
           `_updateFixedCombo: failed to update host index=${host.index}: ${
@@ -658,8 +662,22 @@ class NiconiComments {
           }`,
         );
       }
+      // z 序变化后重排宿主所在链的 timeline 槽位(canvas 绘制顺序 = 数组顺序)
+      this._resortFixedComboChainTimeline(chain);
     }
     return changed;
+  }
+
+  /**
+   * combo 计数变化后重排链覆盖的 timeline 槽位。
+   * 排序比较器使用 fixedComboZIndex,宿主的新 z 序由此生效。
+   * @param chain 合并链
+   */
+  private _resortFixedComboChainTimeline(chain: FixedComboChain): void {
+    for (let v = chain.host.vpos; v < chain.end; v++) {
+      const item = this.timeline[v];
+      if (item) item.sort(TIMELINE_COMMENT_SORT);
+    }
   }
 
   /**
