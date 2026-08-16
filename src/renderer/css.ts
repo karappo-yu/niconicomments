@@ -265,12 +265,6 @@ class CSSRenderer {
 
     element.textContent = comment.content;
 
-    // fixedCombo 宿主: 预留占位宽度(居中盒 + 文本左锚定),xN 增长位置不移动
-    if (comment.fixedComboReservedWidth !== undefined) {
-      element.style.width = `calc(${comment.fixedComboReservedWidth} * var(--dm-unit))`;
-      element.style.textAlign = "left";
-    }
-
     const lineWidth = getConfig(this.config.contextLineWidth, comment.flash);
     const strokeColor = getStrokeColor(c, this.config);
     const strokeWidthPx = lineWidth * drawScale * fontScale * layerScale;

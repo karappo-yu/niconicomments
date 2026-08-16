@@ -643,13 +643,12 @@ class NiconiComments {
       changed = true;
       const host = chain.host;
       // 还原原始字号数据后写入新文本(content setter 会重新测量);
-      // 占位宽度/高度保持预计算值,数字增长位置不移动
+      // 高度保持原值防止 shita 弹幕垂直抖动,宽度随文本自然重新居中
       try {
         host.comment.charSize = chain.charSize;
         host.comment.lineHeight = chain.lineHeight;
         host.comment.fontSize = chain.fontSize;
         host.content = count > 1 ? `${chain.base}x${count}` : chain.base;
-        host.comment.width = host.fixedComboReservedWidth ?? host.comment.width;
         host.comment.height = chain.height;
         host.comment.color = count > 1 ? chain.color : chain.originalColor;
       } catch (e) {

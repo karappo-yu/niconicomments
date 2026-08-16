@@ -70,10 +70,9 @@ const isComboCandidate = (comment: IComment): boolean => {
 };
 
 /**
- * 应用一条链的变更:宿主延长显示计时并预留占位宽度,其余成员隐藏。
- * 占位宽度 = 最大文本(原文x最大计数)的实测宽度:固定弹幕居中显示,
- * 预留宽度后宿主以占位盒整体居中、文本左对齐锚定,xN 增长时位置不移动。
- * 测量失败(异常 comment 实现)时返回 null,该链全员保持原样。
+ * 应用一条链的变更:宿主延长显示计时,其余成员隐藏。
+ * xN 增长时文本变长,固定弹幕按常规规则自然重新居中(轻微移动),不做占位预留。
+ * 宿主/末成员缺失(异常数据)时返回 null,该链全员保持原样。
  */
 const makeChain = (members: IComment[]): FixedComboChain | null => {
   const host = members[0];
@@ -84,27 +83,12 @@ const makeChain = (members: IComment[]): FixedComboChain | null => {
   const last = members[members.length - 1];
   if (!last) return null;
   const end = last.vpos + last.long;
-  // 原始字号数据(超宽测量会原地缩放 charSize,之后必须还原)
+  // 原始字号数据(计数更新时 content setter 会重新测量,可能触发超宽缩放,须先还原)
   const charSize = host.comment.charSize;
   const lineHeight = host.comment.lineHeight;
   const fontSize = host.comment.fontSize;
   const height = host.comment.height;
-  let reservedWidth: number;
-  try {
-    // 临时写入最大文本触发完整测量(含超宽缩放),得到的宽度即真实渲染宽度
-    host.content = `${base}x${members.length}`;
-    reservedWidth = Math.max(host.comment.width, host.width);
-    // 还原字号后恢复原文(否则 base 会按缩放后的字号测量,且后续计数更新字号漂移)
-    host.comment.charSize = charSize;
-    host.comment.lineHeight = lineHeight;
-    host.comment.fontSize = fontSize;
-    host.content = base;
-  } catch (_e) {
-    return null;
-  }
   host.comment.long = end - host.vpos;
-  host.comment.width = reservedWidth;
-  host.fixedComboReservedWidth = reservedWidth;
   for (let i = 1; i < members.length; i++) {
     const member = members[i];
     if (member) member.comment.invisible = true;
