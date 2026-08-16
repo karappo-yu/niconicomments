@@ -441,6 +441,7 @@ const isValidConfig = (item: unknown): boolean => {
     flashScriptChar: isValidFlashScriptChar,
     flashThreshold: (i) =>
       isFiniteNumberInRange(i, { max: MAX_UNIX_TIME_SECONDS }),
+    fixedCombo: (i) => typeof i === "boolean",
     fontSize: isBoundedFontSizeConfig,
     fpsInterval: (i) => isFiniteNumberInRange(i, { max: MAX_COMMENT_RANGE }),
     hideCommentOrder: isHideCommentOrder,

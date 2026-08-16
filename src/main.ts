@@ -28,7 +28,9 @@ import typeGuard from "@/typeGuard";
 import {
   arrayEqual,
   buildAtButtonComment,
+  buildFixedComboChains,
   changeCALayer,
+  fixedComboCountAt,
   getConfig,
   hex2rgb,
   isBanActive,
@@ -39,6 +41,7 @@ import {
   processMovableComment,
 } from "@/utils";
 import { getLazyCommentLookahead } from "@/utils/comment";
+import type { FixedComboChain } from "@/utils/fixedCombo";
 import { createCommentInstance } from "@/utils/plugins";
 import { RangeCacheContext } from "@/utils/rangeCache";
 
@@ -47,7 +50,8 @@ import * as internal from "./internal";
 const EMPTY_TIMELINE = Object.freeze([]) as readonly IComment[];
 const BAN_FRAME_POSITION_RESOLUTION_BUDGET = 256;
 const TIMELINE_COMMENT_SORT = (a: IComment, b: IComment) =>
-  Number(a.owner) - Number(b.owner) || a.index - b.index;
+  Number(a.owner) - Number(b.owner) ||
+  (a.fixedComboZIndex ?? a.index) - (b.fixedComboZIndex ?? b.index);
 const isFiniteVpos = (vpos: number) => Number.isFinite(vpos);
 const isFinitePosition = (pos: Position) =>
   Number.isFinite(pos.x) && Number.isFinite(pos.y);
@@ -170,6 +174,7 @@ class NiconiComments {
   private commentArrayIndexMap: WeakMap<IComment, number>;
   private processedCommentIndex: number;
   private comments: IComment[];
+  private fixedComboChains: FixedComboChain[] = [];
   private destroyed = false;
   private readonly renderer: IRenderer;
   private cssRenderer: CSSRenderer | null = null;
@@ -309,6 +314,7 @@ class NiconiComments {
       }
     }
     this.comments = [];
+    this.fixedComboChains = [];
     this.commentArrayIndexMap = new WeakMap();
     this._clearTimeline();
     this._clearCollision();
@@ -419,6 +425,11 @@ class NiconiComments {
 
     this.plugins = plugins;
     this.lazyCommentOrderSortedByVpos = areCommentsSortedByVpos(instances);
+    if (this.ctx.config.fixedCombo) {
+      // 位置解析の前にチェーンを確定する: ホストの long 延長・幅予約が
+      // そのまま timeline 登録・当たり判定に反映される。
+      this.fixedComboChains = buildFixedComboChains(instances);
+    }
     if (!this.ctx.options.lazy || !this.lazyCommentOrderSortedByVpos) {
       // Non-lazy rendering and lazy fallback both need final plugin output.
       this.getCommentPos(instances, instances.length);
@@ -618,6 +629,58 @@ class NiconiComments {
   }
 
   /**
+   * 固定弹幕 combo 渐进更新:按 vpos 重算各链计数,计数变化时更新宿主文本/颜色。
+   * 纯函数式(从静态的链定义重算),seek 后自动正确。
+   * @param vpos 当前 vpos
+   * @returns 是否有链计数变化(需要重绘)
+   */
+  private _updateFixedCombo(vpos: number): boolean {
+    if (this.fixedComboChains.length === 0) return false;
+    let changed = false;
+    for (const chain of this.fixedComboChains) {
+      const count = fixedComboCountAt(chain, vpos);
+      if (count === chain.currentCount) continue;
+      chain.currentCount = count;
+      changed = true;
+      const host = chain.host;
+      // 还原原始字号数据后写入新文本(content setter 会重新测量);
+      // 高度保持原值防止 shita 弹幕垂直抖动,宽度随文本自然重新居中
+      try {
+        host.comment.charSize = chain.charSize;
+        host.comment.lineHeight = chain.lineHeight;
+        host.comment.fontSize = chain.fontSize;
+        host.content = count > 1 ? `${chain.base}x${count}` : chain.base;
+        host.comment.height = chain.height;
+        host.comment.color = count > 1 ? chain.color : chain.originalColor;
+        // z 序提升到已接续的最后一条成员的层级:生命周期被续上时,
+        // 宿主覆盖此前飘过它上面的弹幕(后到的弹幕 index 更大,仍在其上)
+        host.fixedComboZIndex = chain.memberIndices[count - 1] ?? host.index;
+      } catch (e) {
+        this._log(
+          `_updateFixedCombo: failed to update host index=${host.index}: ${
+            e instanceof Error ? e.message : String(e)
+          }`,
+        );
+      }
+      // z 序变化后重排宿主所在链的 timeline 槽位(canvas 绘制顺序 = 数组顺序)
+      this._resortFixedComboChainTimeline(chain);
+    }
+    return changed;
+  }
+
+  /**
+   * combo 计数变化后重排链覆盖的 timeline 槽位。
+   * 排序比较器使用 fixedComboZIndex,宿主的新 z 序由此生效。
+   * @param chain 合并链
+   */
+  private _resortFixedComboChainTimeline(chain: FixedComboChain): void {
+    for (let v = chain.host.vpos; v < chain.end; v++) {
+      const item = this.timeline[v];
+      if (item) item.sort(TIMELINE_COMMENT_SORT);
+    }
+  }
+
+  /**
    * キャンバスを描画する
    * @param vpos 動画の現在位置の100倍 ニコニコから吐き出されるコメントの位置情報は主にこれ
    * @param forceRendering キャッシュを使用せずに再描画を強制するか
@@ -698,6 +761,9 @@ class NiconiComments {
     );
     const timelineRange = this.timeline[vposInt] ?? EMPTY_TIMELINE;
     const lastTimelineRange = this.timeline[this.lastVposInt] ?? EMPTY_TIMELINE;
+    // combo 更新必须在下方早退检查之前: 计数变化时 timelineRange 成员集合不变
+    // (宿主同一条),arrayEqual 会通过,不在此处标记就会被早退吞掉
+    const fixedComboChanged = this._updateFixedCombo(vpos);
     const currentHasNaka = hasNakaComment(timelineRange);
     const lastHasNaka =
       this._cachedSplit?.vpos === this.lastVposInt
@@ -707,6 +773,7 @@ class NiconiComments {
     if (
       !forceRendering &&
       !requiresDynamicFrameRedraw &&
+      !fixedComboChanged &&
       !currentHasNaka &&
       !lastHasNaka &&
       frameBanActive === this.lastFrameBanActive
