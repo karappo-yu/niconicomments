@@ -318,6 +318,12 @@ const initConfig = () => {
      */
     fixedCombo: false,
     /**
+     * 滚动弹幕(naka)窗口去重: 同文本滚动弹幕在 windowVpos(1/100s)窗口内
+     * 静态合并为一条(最早者胜),宿主文本追加 xN 后缀并随机着色,成员隐藏。
+     * 0 = 关闭。owner / 固定弹幕(ue/shita)不参与。
+     */
+    nakaDedupeWindow: 0,
+    /**
      * 改行リサイズの行数
      */
     lineBreakCount: {

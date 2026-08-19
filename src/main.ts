@@ -26,6 +26,7 @@ import { createRenderer } from "@/renderer";
 import { CSSRenderer } from "@/renderer/css";
 import typeGuard from "@/typeGuard";
 import {
+  applyNakaDedupe,
   arrayEqual,
   buildAtButtonComment,
   buildFixedComboChains,
@@ -429,6 +430,11 @@ class NiconiComments {
       // 位置解析の前にチェーンを確定する: ホストの long 延長・幅予約が
       // そのまま timeline 登録・当たり判定に反映される。
       this.fixedComboChains = buildFixedComboChains(instances);
+    }
+    // 滚动弹幕窗口去重: 同样在位置解析前静态合并(宿主宽度以 xN 后缀后的
+    // 文本测量,参与排道)。窗口分组静态,无需逐帧更新。
+    if (this.ctx.config.nakaDedupeWindow > 0) {
+      applyNakaDedupe(instances, this.ctx.config.nakaDedupeWindow);
     }
     if (!this.ctx.options.lazy || !this.lazyCommentOrderSortedByVpos) {
       // Non-lazy rendering and lazy fallback both need final plugin output.

@@ -185,4 +185,62 @@ const fixedComboCountAt = (chain: FixedComboChain, vpos: number): number => {
   return lo;
 };
 
+/**
+ * 滚动弹幕(naka)窗口去重: 静态合并。
+ *
+ * 与插件侧 mergeDuplicateItems 语义一致: 按文本精确分组(不区分字号/位置),
+ * 时间升序后贪心分组——组内成员与最早者的 vpos 差 ≤ windowVpos;
+ * 宿主(组内最早)文本追加 xN 后缀并随机着色,其余成员标记 invisible。
+ * 分组在位置解析前一次性完成,窗口组是静态的,无需逐帧更新(与 fixedCombo 不同)。
+ * owner / 固定弹幕(ue/shita) / 空文本不参与。
+ *
+ * @param comments 全部评论实例(createCommentInstance 之后、getCommentPos 之前)
+ * @param windowVpos 去重窗口(1/100s;0 或负值 = 关闭)
+ */
+export const applyNakaDedupe = (
+  comments: IComment[],
+  windowVpos: number,
+): void => {
+  if (!(windowVpos > 0)) return;
+  const buckets = new Map<string, IComment[]>();
+  for (const comment of comments) {
+    if (!comment || comment.invisible || comment.owner) continue;
+    // 滚动弹幕判定与 fixedCombo 相反: 仅 naka(显式或默认)参与
+    if (comment.loc !== "naka") continue;
+    const base = comment.content;
+    if (typeof base !== "string" || base.length === 0) continue;
+    const list = buckets.get(base);
+    if (list) list.push(comment);
+    else buckets.set(base, [comment]);
+  }
+  for (const [, list] of buckets) {
+    if (list.length < 2) continue;
+    list.sort((a, b) => a.vpos - b.vpos || a.index - b.index);
+    let i = 0;
+    while (i < list.length) {
+      const first = list[i];
+      if (!first) break;
+      let count = 1;
+      let j = i + 1;
+      while (j < list.length) {
+        const item = list[j];
+        if (!item || item.vpos - first.vpos > windowVpos) break;
+        count++;
+        j++;
+      }
+      if (count > 1) {
+        // 先写文本(content setter 会重新测量宽度/高度,参与排道),再写后缀字段
+        first.content = `${first.content}x${count}`;
+        first.comment.comboSuffix = `x${count}`;
+        first.comment.comboSuffixColor = pickRandomComboColor();
+        for (let k = i + 1; k < j; k++) {
+          const member = list[k];
+          if (member) member.comment.invisible = true;
+        }
+      }
+      i = j;
+    }
+  }
+};
+
 export { buildFixedComboChains, fixedComboCountAt };

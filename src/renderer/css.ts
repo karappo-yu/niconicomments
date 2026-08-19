@@ -263,7 +263,9 @@ class CSSRenderer {
       posY = comment.posY;
     }
 
-    element.textContent = comment.content;
+    // fixedCombo/nakaDedupe 宿主: 本体原生样式 + 随机色 xN 后缀 span;
+    // 无后缀时退化为整串 textContent(所有弹幕通用)
+    this.applyComboContent(element, comment);
 
     const lineWidth = getConfig(this.config.contextLineWidth, comment.flash);
     const strokeColor = getStrokeColor(c, this.config);

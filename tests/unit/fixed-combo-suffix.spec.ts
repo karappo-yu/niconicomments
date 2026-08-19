@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import type { FormattedComment, IComment, IRenderer } from "@/@types";
 import { initConfig } from "@/definition/initConfig";
 import NiconiComments from "@/main";
-import { buildFixedComboChains } from "@/utils/fixedCombo";
+import { applyNakaDedupe, buildFixedComboChains } from "@/utils/fixedCombo";
 
 const textMetrics = (width: number): TextMetrics =>
   ({
@@ -178,5 +178,152 @@ describe("fixedCombo suffix random color", () => {
     expect(host()?.comment.comboSuffix).toBeUndefined();
     expect(host()?.comment.comboSuffixColor).toBeUndefined();
     expect(host()?.comment.color).toBe("#FFFFFF");
+  });
+});
+
+describe("applyNakaDedupe scroll danmaku window dedupe", () => {
+  beforeEach(() => {
+    ensureCanvasElement();
+    initConfig();
+    let timeoutId = 0;
+    vi.stubGlobal("window", {
+      setTimeout: vi.fn(() => ++timeoutId),
+    });
+    vi.stubGlobal("clearTimeout", vi.fn());
+  });
+
+  const stateComments = (instance: NiconiComments): IComment[] =>
+    (instance as unknown as { comments: IComment[] }).comments;
+
+  test("same-text naka comments inside window merge into host xN + random suffix color", () => {
+    const renderer = new FakeRenderer();
+    const instance = new NiconiComments(
+      renderer,
+      [100, 200, 250, 300].map((vpos, i) =>
+        createComment({ id: i + 1, vpos, content: "dupe", mail: ["naka"] }),
+      ),
+      {
+        format: "formatted",
+        mode: "html5",
+        config: { nakaDedupeWindow: 500 },
+      },
+    );
+    instance.drawCanvas(0, true);
+
+    const comments = stateComments(instance);
+    expect(comments[0]?.content).toBe("dupex4");
+    expect(comments[0]?.comment.comboSuffix).toBe("x4");
+    expect(comments[0]?.comment.comboSuffixColor).toMatch(/^#[0-9A-F]{6}$/i);
+    expect(comments[0]?.comment.color).toBe("#FFFFFF");
+    expect(comments[1]?.comment.invisible).toBe(true);
+    expect(comments[2]?.comment.invisible).toBe(true);
+    expect(comments[3]?.comment.invisible).toBe(true);
+  });
+
+  test("owner comments are excluded from dedupe (fork owner ignored)", () => {
+    const renderer = new FakeRenderer();
+    const instance = new NiconiComments(
+      renderer,
+      [
+        createComment({ id: 1, vpos: 100, content: "dupe", mail: ["naka"] }),
+        createComment({ id: 2, vpos: 200, content: "dupe", mail: ["naka"] }),
+        createComment({
+          id: 3,
+          vpos: 300,
+          content: "dupe",
+          mail: ["naka"],
+          owner: true,
+        }),
+      ],
+      {
+        format: "formatted",
+        mode: "html5",
+        config: { nakaDedupeWindow: 500 },
+      },
+    );
+    instance.drawCanvas(0, true);
+
+    const comments = stateComments(instance);
+    expect(comments[0]?.content).toBe("dupex2");
+    expect(comments[1]?.comment.invisible).toBe(true);
+    expect(comments[2]?.comment.invisible).toBe(false);
+    expect(comments[2]?.content).toBe("dupe");
+  });
+
+  test("fixed (ue/shita) comments never participate in naka dedupe", () => {
+    const renderer = new FakeRenderer();
+    const instance = new NiconiComments(
+      renderer,
+      [100, 200, 300].map((vpos, i) =>
+        createComment({ id: i + 1, vpos, content: "dupe", mail: ["ue"] }),
+      ),
+      {
+        format: "formatted",
+        mode: "html5",
+        config: { nakaDedupeWindow: 500 },
+      },
+    );
+    instance.drawCanvas(0, true);
+
+    const comments = stateComments(instance);
+    expect(comments[0]?.content).toBe("dupe");
+    expect(comments.every((c) => !c.comment.invisible)).toBe(true);
+  });
+
+  test("groups restart after window boundary, each with own count", () => {
+    const renderer = new FakeRenderer();
+    const instance = new NiconiComments(
+      renderer,
+      [100, 200, 300, 700, 800, 850].map((vpos, i) =>
+        createComment({ id: i + 1, vpos, content: "dupe", mail: ["naka"] }),
+      ),
+      {
+        format: "formatted",
+        mode: "html5",
+        config: { nakaDedupeWindow: 500 },
+      },
+    );
+    instance.drawCanvas(0, true);
+
+    const comments = stateComments(instance);
+    expect(comments[0]?.content).toBe("dupex3");
+    expect(comments[0]?.comment.comboSuffix).toBe("x3");
+    expect(comments[3]?.content).toBe("dupex3");
+    expect(comments[3]?.comment.comboSuffix).toBe("x3");
+  });
+
+  test("window 0 (off) merges nothing", () => {
+    const renderer = new FakeRenderer();
+    const instance = new NiconiComments(
+      renderer,
+      [100, 200].map((vpos, i) =>
+        createComment({ id: i + 1, vpos, content: "dupe", mail: ["naka"] }),
+      ),
+      {
+        format: "formatted",
+        mode: "html5",
+        config: { nakaDedupeWindow: 0 },
+      },
+    );
+    instance.drawCanvas(0, true);
+
+    const comments = stateComments(instance);
+    expect(comments[0]?.content).toBe("dupe");
+    expect(comments.every((c) => !c.comment.invisible)).toBe(true);
+  });
+
+  test("applyNakaDedupe direct call merges by exact text only (no size grouping)", () => {
+    const comments: IComment[] = [100, 200].map((vpos, i) => ({
+      ...createComment({ id: i + 1, vpos, content: "dupe", mail: ["naka"] }),
+      comment: { size: "small" },
+      loc: "naka",
+      long: 1000,
+    }));
+    applyNakaDedupe(comments, 500);
+
+    expect(comments[0]?.content).toBe("dupex2");
+    expect(comments[0]?.comment.comboSuffix).toBe("x2");
+    expect(comments[0]?.comment.comboSuffixColor).toMatch(/^#[0-9A-F]{6}$/i);
+    expect(comments[1]?.comment.invisible).toBe(true);
   });
 });

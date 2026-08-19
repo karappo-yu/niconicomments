@@ -90,6 +90,12 @@ export type BaseConfig = {
    * 关闭时固定弹幕原样逐条显示。滚动弹幕(naka)不受此配置影响。
    */
   fixedCombo: boolean;
+  /**
+   * 滚动弹幕(naka)窗口去重窗口(1/100s): 同文本滚动弹幕在窗口内静态合并
+   * (最早者胜,宿主文本追加 xN 后缀并随机着色,成员隐藏)。0 = 关闭。
+   * owner / 固定弹幕不参与。与 fixedCombo(固定弹幕渐进合并)互不影响。
+   */
+  nakaDedupeWindow: number;
   lineBreakCount: { [key in CommentSize]: number };
   nakaCommentSpeedOffset: number;
   atButtonPadding: number;
