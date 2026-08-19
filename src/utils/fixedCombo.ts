@@ -17,10 +17,8 @@ export type FixedComboChain = {
   host: IComment;
   /** 原始文本(不含 xN 后缀) */
   base: string;
-  /** 宿主合并前的原色(计数回到 1 时恢复) */
-  originalColor: string;
-  /** 合并后的稳定色(按文本 hash 选色,重放/seek 不闪色) */
-  color: string;
+  /** 后缀固定随机色(每次加载随机;计数增长不变色,seek 内稳定) */
+  suffixColor: string;
   /** 各成员 vpos(升序,含宿主) */
   memberVposes: number[];
   /** 各成员 index(与 memberVposes 同序;接续时宿主的 z 序提升到已接续成员的最大 index) */
@@ -63,6 +61,10 @@ const hashText = (text: string): number => {
 export const pickFixedComboColor = (text: string): string =>
   COMBO_COLORS[hashText(text) % COMBO_COLORS.length] ?? "#FFCC00";
 
+/** 每次加载随机抽一个池色(链构建时逐级分配,重放/seek 内稳定) */
+export const pickRandomComboColor = (): string =>
+  COMBO_COLORS[Math.floor(Math.random() * COMBO_COLORS.length)] ?? "#FFCC00";
+
 const isComboCandidate = (comment: IComment): boolean => {
   if (!comment || comment.invisible || comment.owner) return false;
   if (comment.loc === "naka") return false;
@@ -80,8 +82,6 @@ const makeChain = (members: IComment[]): FixedComboChain | null => {
   const host = members[0];
   if (!host) return null;
   const base = host.content;
-  const originalColor = host.comment.color;
-  const color = pickFixedComboColor(base);
   const last = members[members.length - 1];
   if (!last) return null;
   const end = last.vpos + last.long;
@@ -98,8 +98,7 @@ const makeChain = (members: IComment[]): FixedComboChain | null => {
   return {
     host,
     base,
-    originalColor,
-    color,
+    suffixColor: pickRandomComboColor(),
     memberVposes: members.map((m) => m.vpos),
     memberIndices: members.map((m) => m.index),
     end,

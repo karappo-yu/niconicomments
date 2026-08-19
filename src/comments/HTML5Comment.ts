@@ -556,8 +556,18 @@ class HTML5Comment extends BaseComment {
         (this.comment.charSize - this.comment.lineHeight) / 2 +
         this.comment.lineHeight * -0.16 +
         (this.config.fonts.html5[this.comment.font]?.offset || 0);
-      for (const item of this.comment.content) {
-        if (item?.type === "spacer") {
+      // fixedCombo 宿主:本体保持原生色,xN 后缀单独随机色(仅出现在末行末尾)
+      const combo = this.comment.comboSuffix
+        ? {
+            suffix: this.comment.comboSuffix,
+            color: this.comment.comboSuffixColor ?? this.comment.color,
+          }
+        : undefined;
+      const items = this.comment.content;
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (!item) continue;
+        if (item.type === "spacer") {
           lineCount += item.count * item.charWidth * this.comment.fontSize;
           continue;
         }
@@ -568,8 +578,27 @@ class HTML5Comment extends BaseComment {
           const posY =
             (this.comment.lineHeight * (lineCount + 1 + paddingTop) + offsetY) /
             scale;
-          image.strokeText(line, 0, posY);
-          image.fillText(line, 0, posY);
+          const isLastLine = i === items.length - 1 && j === n - 1;
+          if (
+            isLastLine &&
+            combo &&
+            typeof line === "string" &&
+            line.endsWith(combo.suffix)
+          ) {
+            const base = line.slice(0, -combo.suffix.length);
+            if (base.length > 0) {
+              image.strokeText(base, 0, posY);
+              image.fillText(base, 0, posY);
+            }
+            // 助手画布的 measureText 不受缩放变换影响,与预缩放坐标一致
+            const baseWidth = image.measureText(base).width;
+            image.setFillStyle(combo.color);
+            image.strokeText(combo.suffix, baseWidth, posY);
+            image.fillText(combo.suffix, baseWidth, posY);
+          } else {
+            image.strokeText(line, 0, posY);
+            image.fillText(line, 0, posY);
+          }
           lineCount += 1;
         }
       }

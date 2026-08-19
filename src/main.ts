@@ -651,7 +651,11 @@ class NiconiComments {
         host.comment.fontSize = chain.fontSize;
         host.content = count > 1 ? `${chain.base}x${count}` : chain.base;
         host.comment.height = chain.height;
-        host.comment.color = count > 1 ? chain.color : chain.originalColor;
+        // 弹幕本体保持原生样式(不随合并改色),仅 xN 后缀使用逐级随机色。
+        // 后缀文本与颜色均由引擎显式写入,渲染器无需自行解析拼接串。
+        host.comment.comboSuffix = count > 1 ? `x${count}` : undefined;
+        host.comment.comboSuffixColor =
+          count > 1 ? chain.suffixColor : undefined;
         // z 序提升到已接续的最后一条成员的层级:生命周期被续上时,
         // 宿主覆盖此前飘过它上面的弹幕(后到的弹幕 index 更大,仍在其上)
         host.fixedComboZIndex = chain.memberIndices[count - 1] ?? host.index;
