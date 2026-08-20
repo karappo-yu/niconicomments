@@ -442,6 +442,12 @@ const isValidConfig = (item: unknown): boolean => {
     flashThreshold: (i) =>
       isFiniteNumberInRange(i, { max: MAX_UNIX_TIME_SECONDS }),
     fixedCombo: (i) => typeof i === "boolean",
+    nakaDedupeWindow: (i) =>
+      isFiniteNumberInRange(i, {
+        min: 0,
+        max: MAX_COMMENT_RANGE,
+        integer: true,
+      }),
     fontSize: isBoundedFontSizeConfig,
     fpsInterval: (i) => isFiniteNumberInRange(i, { max: MAX_COMMENT_RANGE }),
     hideCommentOrder: isHideCommentOrder,

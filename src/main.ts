@@ -26,6 +26,7 @@ import { createRenderer } from "@/renderer";
 import { CSSRenderer } from "@/renderer/css";
 import typeGuard from "@/typeGuard";
 import {
+  applyNakaDedupe,
   arrayEqual,
   buildAtButtonComment,
   buildFixedComboChains,
@@ -430,6 +431,11 @@ class NiconiComments {
       // そのまま timeline 登録・当たり判定に反映される。
       this.fixedComboChains = buildFixedComboChains(instances);
     }
+    // 滚动弹幕窗口去重: 同样在位置解析前静态合并(宿主宽度以 xN 后缀后的
+    // 文本测量,参与排道)。窗口分组静态,无需逐帧更新。
+    if (this.ctx.config.nakaDedupeWindow > 0) {
+      applyNakaDedupe(instances, this.ctx.config.nakaDedupeWindow);
+    }
     if (!this.ctx.options.lazy || !this.lazyCommentOrderSortedByVpos) {
       // Non-lazy rendering and lazy fallback both need final plugin output.
       this.getCommentPos(instances, instances.length);
@@ -651,7 +657,11 @@ class NiconiComments {
         host.comment.fontSize = chain.fontSize;
         host.content = count > 1 ? `${chain.base}x${count}` : chain.base;
         host.comment.height = chain.height;
-        host.comment.color = count > 1 ? chain.color : chain.originalColor;
+        // 弹幕本体保持原生样式(不随合并改色),仅 xN 后缀使用逐级随机色。
+        // 后缀文本与颜色均由引擎显式写入,渲染器无需自行解析拼接串。
+        host.comment.comboSuffix = count > 1 ? `x${count}` : undefined;
+        host.comment.comboSuffixColor =
+          count > 1 ? chain.suffixColor : undefined;
         // z 序提升到已接续的最后一条成员的层级:生命周期被续上时,
         // 宿主覆盖此前飘过它上面的弹幕(后到的弹幕 index 更大,仍在其上)
         host.fixedComboZIndex = chain.memberIndices[count - 1] ?? host.index;

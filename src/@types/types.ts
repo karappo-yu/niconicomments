@@ -57,6 +57,10 @@ export type FormattedCommentWithSize = FormattedCommentWithFont & {
   scale: number;
   scaleX: number;
   buttonObjects?: ButtonList;
+  /** fixedCombo 宿主的分段后缀(如 "x2");非宿主或计数回到 1 时为 undefined */
+  comboSuffix?: string;
+  /** 后缀颜色(fixedCombo 宿主,随计数逐级随机分配) */
+  comboSuffixColor?: string;
 };
 export type ParseContentResult = {
   content: CommentContentItem[];

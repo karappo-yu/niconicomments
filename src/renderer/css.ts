@@ -263,7 +263,9 @@ class CSSRenderer {
       posY = comment.posY;
     }
 
-    element.textContent = comment.content;
+    // fixedCombo/nakaDedupe 宿主: 本体原生样式 + 随机色 xN 后缀 span;
+    // 无后缀时退化为整串 textContent(所有弹幕通用)
+    this.applyComboContent(element, comment);
 
     const lineWidth = getConfig(this.config.contextLineWidth, comment.flash);
     const strokeColor = getStrokeColor(c, this.config);
@@ -431,16 +433,45 @@ class CSSRenderer {
   }
 
   /**
+   * 写入弹幕文本:fixedCombo 宿主拆分本体 + 随机色 xN 后缀 span,
+   * 其余弹幕保持整串 textContent。
+   * @param element 目标元素
+   * @param comment 弹幕实例
+   */
+  private applyComboContent(element: HTMLDivElement, comment: IComment): void {
+    const c = comment.comment;
+    const suffix = c.comboSuffix;
+    const content = comment.content;
+    if (!suffix) {
+      if (element.textContent !== content) element.textContent = content;
+      return;
+    }
+    // 池复用的元素可能残留旧 dataset,须确认 span 子节点确实存在
+    if (element.dataset.dmComboSuffix === suffix && element.lastElementChild) {
+      return;
+    }
+    const base = content.slice(0, -suffix.length);
+    element.replaceChildren();
+    element.appendChild(document.createTextNode(base));
+    const span = document.createElement("span");
+    span.textContent = suffix;
+    span.style.color = c.comboSuffixColor ?? "inherit";
+    element.appendChild(span);
+    element.dataset.dmComboSuffix = suffix;
+  }
+
+  /**
    * fixedCombo 宿主の段階更新を DOM に反映する。
-   * エンジン側(_updateFixedCombo)が comment.content / comment.color を更新済みなので、
-   * ここでテキストと色を同期し、テキスト変化時に pop アニメーションを再生する。
+   * エンジン側(_updateFixedCombo)が comment.content / comboSuffix を更新済みなので、
+   * ここでテキストを同期し、テキスト変化時に pop アニメーションを再生する。
+   * 本体色は原生スタイルを維持し、xN 后缀のみ独立色を持つ。
    * 要素は固定幅の予約ボックス(中央揃え・テキスト左詰め)のため位置は動かない。
    */
   private syncFixedCombo(element: HTMLDivElement, comment: IComment): void {
     const c = comment.comment;
     if (element.textContent !== comment.content) {
-      element.textContent = comment.content;
-      // 色が変わるのは計数が 1↔2 を跨ぐ時だけ = テキスト変化と同時
+      this.applyComboContent(element, comment);
+      // 本体色不变(fixedCombo 宿主保持原生样式),同步以防外部改色
       element.style.color = c.color;
       // z 序: 計数が進む(生命周期が繋がる)たびに、最後に繋がったメンバーの
       // 层级へ引き上げ、それまでに自分の上を通過した弾幕を覆う
